@@ -1,18 +1,11 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
+import { ThemeProvider, CssBaseline } from '@mui/material';
 import { AuthProvider } from './contexts/AuthContext';
 import DashboardLayout from './layouts/DashboardLayout';
 import AuthPage from './pages/auth';
 import PromptPackDetailPage from './pages/prompt/[id]';
 import UploadPage from './pages/upload/UploadPage';
-
-const theme = createTheme({
-  palette: {
-    background: {
-      default: '#f5f5f5',
-    },
-  },
-});
+import theme from './theme';
 
 function App() {
   return (
