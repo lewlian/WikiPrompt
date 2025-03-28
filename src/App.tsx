@@ -1,5 +1,7 @@
 import React from 'react';
-import { Box, Container, CssBaseline, ThemeProvider, createTheme } from '@mui/material';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Box, CssBaseline, ThemeProvider, createTheme } from '@mui/material';
+import { AuthPage } from './pages/auth/AuthPage';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import PromptGrid from './components/PromptGrid';
@@ -12,19 +14,31 @@ const theme = createTheme({
   },
 });
 
+// Dashboard layout component
+const DashboardLayout = () => {
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <Header />
+      <Box sx={{ display: 'flex', flex: 1, mt: 3, mb: 3 }}>
+        <Sidebar />
+        <Box sx={{ flexGrow: 1, px: 3 }}>
+          <PromptGrid />
+        </Box>
+      </Box>
+    </Box>
+  );
+};
+
 function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-        <Header />
-        <Container maxWidth="xl" sx={{ mt: 3, mb: 3, display: 'flex', gap: 3 }}>
-          <Sidebar />
-          <Box sx={{ flexGrow: 1 }}>
-            <PromptGrid />
-          </Box>
-        </Container>
-      </Box>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/auth" element={<AuthPage />} />
+          <Route path="/" element={<DashboardLayout />} />
+        </Routes>
+      </BrowserRouter>
     </ThemeProvider>
   );
 }
