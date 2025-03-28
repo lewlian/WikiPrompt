@@ -1,9 +1,7 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { AppBar, Toolbar, Typography, Button, Box, InputBase } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import SearchIcon from '@mui/icons-material/Search';
-import { useAuth } from '../contexts/AuthContext';
 
 const Search = styled('div')(({ theme }) => ({
   position: 'relative',
@@ -44,23 +42,11 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
 }));
 
 const Header = () => {
-  const navigate = useNavigate();
-  const { user, signOut } = useAuth();
-
-  const handleSignOut = async () => {
-    await signOut();
-  };
-
   return (
     <AppBar position="static" color="default" elevation={1}>
       <Toolbar>
-        <Typography 
-          variant="h6" 
-          component="div" 
-          sx={{ flexGrow: 0, mr: 2, cursor: 'pointer' }}
-          onClick={() => navigate('/')}
-        >
-          WikiPrompt
+        <Typography variant="h6" component="div" sx={{ flexGrow: 0, mr: 2 }}>
+          Homepage / Marketplace Feed
         </Typography>
         <Search>
           <SearchIconWrapper>
@@ -72,35 +58,10 @@ const Header = () => {
           />
         </Search>
         <Box sx={{ flexGrow: 1 }} />
-        {user ? (
-          <>
-            <Button 
-              variant="contained" 
-              color="primary"
-              sx={{ mr: 2 }}
-            >
-              Become a Creator
-            </Button>
-            <Button onClick={handleSignOut}>Sign Out</Button>
-          </>
-        ) : (
-          <>
-            <Button 
-              variant="contained" 
-              color="primary"
-              onClick={() => navigate('/auth?mode=signin')}
-              sx={{ mr: 2 }}
-            >
-              Sign In
-            </Button>
-            <Button 
-              variant="outlined"
-              onClick={() => navigate('/auth?mode=signup')}
-            >
-              Sign Up
-            </Button>
-          </>
-        )}
+        <Button variant="contained" color="primary">
+          Become a Creator
+        </Button>
+        <Button sx={{ ml: 2 }}>Sign In</Button>
       </Toolbar>
     </AppBar>
   );

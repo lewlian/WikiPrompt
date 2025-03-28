@@ -1,71 +1,60 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
 import {
-  Box,
-  Button,
-  TextField,
-  Typography,
-  Alert,
-  Paper,
   Container,
-  Tab,
+  Box,
   Tabs,
+  Tab,
+  TextField,
+  Button,
+  Typography,
+  Paper,
 } from '@mui/material';
+import { supabase } from '../../lib/supabaseClient';
 
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      {...other}
-    >
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
-    </div>
-  );
-}
-
-export const AuthPage = () => {
-  const navigate = useNavigate();
+export default function AuthPage() {
   const [searchParams] = useSearchParams();
-  const { signIn, signUp, error: authError } = useAuth();
+  const navigate = useNavigate();
+  const [tab, setTab] = useState(searchParams.get('mode') === 'signup' ? 1 : 0);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState(searchParams.get('mode') === 'signup' ? 1 : 0);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSignUp = async () => {
-    setError(null);
-    const { error } = await signUp(email, password, name);
-    if (error) {
-      setError(error.message);
-    } else {
-      navigate(-1); // Go back to previous page
-    }
-  };
-
-  const handleSignIn = async () => {
-    setError(null);
-    const { error } = await signIn(email, password);
-    if (error) {
-      setError(error.message);
-    } else {
-      navigate(-1); // Go back to previous page
-    }
-  };
-
-  const handleTabChange = (newValue: number) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTab(newValue);
-    const mode = newValue === 1 ? 'signup' : 'signin';
-    navigate(`/auth?mode=${mode}`, { replace: true });
+    navigate(`/auth?mode=${newValue === 0 ? 'signin' : 'signup'}`, { replace: true });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      if (tab === 0) {
+        // Sign In
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+        navigate('/');
+      } else {
+        // Sign Up
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+        if (error) throw error;
+        // Show success message or redirect
+        navigate('/');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -74,78 +63,52 @@ export const AuthPage = () => {
         <Typography variant="h4" align="center" gutterBottom>
           Welcome to WikiPrompt
         </Typography>
-
-        {(error || authError) && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error || (authError as Error)?.message}
-          </Alert>
-        )}
-
-        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs value={tab} onChange={(_, newValue) => handleTabChange(newValue)} centered>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+          <Tabs value={tab} onChange={handleTabChange} centered>
             <Tab label="Sign In" />
             <Tab label="Sign Up" />
           </Tabs>
         </Box>
 
-        <TabPanel value={tab} index={0}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              label="Email"
-              fullWidth
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <TextField
-              label="Password"
-              type="password"
-              fullWidth
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <Button
-              variant="contained"
-              fullWidth
-              size="large"
-              onClick={handleSignIn}
-            >
-              Sign In
-            </Button>
-          </Box>
-        </TabPanel>
+        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
+          {error && (
+            <Typography color="error" sx={{ mb: 2 }}>
+              {error}
+            </Typography>
+          )}
 
-        <TabPanel value={tab} index={1}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              label="Name"
-              fullWidth
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-            <TextField
-              label="Email"
-              fullWidth
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <TextField
-              label="Password"
-              type="password"
-              fullWidth
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <Button
-              variant="contained"
-              fullWidth
-              size="large"
-              onClick={handleSignUp}
-            >
-              Sign Up
-            </Button>
-          </Box>
-        </TabPanel>
+          <TextField
+            fullWidth
+            label="Email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            margin="normal"
+            required
+          />
+
+          <TextField
+            fullWidth
+            label="Password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            margin="normal"
+            required
+          />
+
+          <Button
+            type="submit"
+            fullWidth
+            variant="contained"
+            size="large"
+            disabled={loading}
+            sx={{ mt: 3, mb: 2 }}
+          >
+            {loading ? 'Processing...' : tab === 0 ? 'Sign In' : 'Sign Up'}
+          </Button>
+        </Box>
       </Paper>
     </Container>
   );
-}; 
+} 
