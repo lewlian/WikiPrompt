@@ -2,6 +2,8 @@ import React from 'react';
 import { AppBar, Toolbar, Typography, Button, Box, InputBase } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import SearchIcon from '@mui/icons-material/Search';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 const Search = styled('div')(({ theme }) => ({
   position: 'relative',
@@ -42,11 +44,31 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
 }));
 
 const Header = () => {
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+
+  const handleUploadClick = () => {
+    navigate('/upload');
+  };
+
+  const handleAuthClick = (mode: 'signin' | 'signup') => {
+    navigate(`/auth?mode=${mode}`);
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
+
   return (
     <AppBar position="static" color="default" elevation={1}>
       <Toolbar>
-        <Typography variant="h6" component="div" sx={{ flexGrow: 0, mr: 2 }}>
-          Homepage / Marketplace Feed
+        <Typography 
+          variant="h6" 
+          component="div" 
+          sx={{ flexGrow: 0, mr: 2, cursor: 'pointer' }}
+          onClick={() => navigate('/')}
+        >
+          WikiPrompt
         </Typography>
         <Search>
           <SearchIconWrapper>
@@ -58,10 +80,35 @@ const Header = () => {
           />
         </Search>
         <Box sx={{ flexGrow: 1 }} />
-        <Button variant="contained" color="primary">
-          Become a Creator
-        </Button>
-        <Button sx={{ ml: 2 }}>Sign In</Button>
+        {user ? (
+          <>
+            {user.user_metadata.type === 'creator' && (
+              <Button 
+                variant="contained" 
+                color="primary"
+                onClick={handleUploadClick}
+                sx={{ mr: 2 }}
+              >
+                Upload Prompt
+              </Button>
+            )}
+            <Button onClick={handleSignOut}>Sign Out</Button>
+          </>
+        ) : (
+          <>
+            <Button 
+              variant="contained" 
+              color="primary"
+              onClick={() => handleAuthClick('signup')}
+              sx={{ mr: 2 }}
+            >
+              Become a Creator
+            </Button>
+            <Button onClick={() => handleAuthClick('signin')}>
+              Sign In
+            </Button>
+          </>
+        )}
       </Toolbar>
     </AppBar>
   );

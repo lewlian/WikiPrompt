@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import DashboardLayout from './layouts/DashboardLayout';
 import AuthPage from './pages/auth';
 import PromptPackDetailPage from './pages/prompt/[id]';
+import UploadPage from './pages/upload/UploadPage';
 
 const theme = createTheme({
   palette: {
@@ -23,6 +24,7 @@ function App() {
             <Route path="/" element={<DashboardLayout />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/prompt/:id" element={<PromptPackDetailPage />} />
+            <Route path="/upload" element={<UploadPage />} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>
