@@ -60,7 +60,7 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, onClick }) => {
     <Card 
       onClick={onClick}
       sx={{ 
-        height: '100%', 
+        width: '100%',
         display: 'flex', 
         flexDirection: 'column',
         '&:hover': {
@@ -77,8 +77,10 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, onClick }) => {
             width: '100%', 
             height: '100%', 
             m: 0,
+            overflow: 'hidden', // Prevent scrollbars
             '& .MuiImageListItem-root': {
               padding: 0,
+              overflow: 'hidden', // Ensure images don't cause overflow
             },
           }} 
           cols={cols} 
@@ -86,7 +88,10 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, onClick }) => {
           gap={2}
         >
           {displayImages.map((image, index) => (
-            <ImageListItem key={index}>
+            <ImageListItem 
+              key={index}
+              sx={{ overflow: 'hidden' }} // Ensure consistent overflow handling
+            >
               <img
                 src={image}
                 alt={`${prompt.title} preview ${index + 1}`}
@@ -95,9 +100,10 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, onClick }) => {
                   height: '100%',
                   width: '100%',
                   objectFit: 'cover',
+                  display: 'block', // Prevent inline image spacing
                 }}
                 onError={(e) => {
-                  console.error('Image failed to load:', image); // Debug log
+                  console.error('Image failed to load:', image);
                   const target = e.target as HTMLImageElement;
                   if (target.src !== FALLBACK_IMAGE) {
                     target.src = FALLBACK_IMAGE;
@@ -124,9 +130,29 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, onClick }) => {
           </Box>
         )}
       </Box>
-      <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Typography variant="h6" component="h2" noWrap>
+      <CardContent sx={{ 
+        flexGrow: 1, 
+        display: 'flex', 
+        flexDirection: 'column',
+        p: 2,
+        '&:last-child': { pb: 2 }, // Override MUI's default padding
+      }}>
+        <Box sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Typography 
+            variant="h6" 
+            component="h2" 
+            sx={{
+              fontSize: '1rem',
+              fontWeight: 600,
+              lineHeight: 1.2,
+              maxWidth: 'calc(100% - 80px)', // Leave space for the chip
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+            }}
+          >
             {prompt.title}
           </Typography>
           <Chip 
@@ -136,6 +162,7 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, onClick }) => {
               bgcolor: 'primary.main',
               color: 'white',
               fontWeight: 500,
+              flexShrink: 0,
             }} 
           />
         </Box>
@@ -144,24 +171,43 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, onClick }) => {
           variant="body2" 
           color="text.secondary" 
           sx={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
             display: '-webkit-box',
             WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-            mb: 1,
+            mb: 'auto',
+            minHeight: '2.5em',
           }}
         >
           {prompt.prompt}
         </Typography>
 
-        <Box sx={{ mt: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box sx={{ 
+          mt: 2,
+          pt: 2,
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+        }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Avatar 
               src={prompt.creator_avatar || FALLBACK_IMAGE} 
               alt={prompt.creator_name}
               sx={{ width: 24, height: 24 }}
             />
-            <Typography variant="body2" color="text.secondary" noWrap>
+            <Typography 
+              variant="body2" 
+              color="text.secondary" 
+              sx={{
+                maxWidth: 120,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
               {prompt.creator_name || 'Anonymous'}
             </Typography>
           </Box>
@@ -183,91 +229,109 @@ const PromptGrid: React.FC = () => {
   const navigate = useNavigate();
   const [prompts, setPrompts] = useState<PromptPackDetails[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0); // Add refresh key
+
+  const fetchPrompts = async () => {
+    try {
+      setLoading(true);
+      // First get the prompt packs
+      const { data: promptData, error: promptError } = await supabase
+        .from('prompt_packs')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (promptError) {
+        throw promptError;
+      }
+
+      // Then get creator info for each prompt pack
+      const promptsWithCreators = await Promise.all((promptData || []).map(async (prompt) => {
+        const { data: creatorData } = await supabase
+          .from('creator_profiles')
+          .select('display_name')
+          .eq('id', prompt.creator_id)
+          .single();
+
+        // Use the preview_images directly since they are already public URLs
+        const previewImages = Array.isArray(prompt.preview_images) 
+          ? prompt.preview_images.filter((url: string) => typeof url === 'string' && url.trim() !== '')
+          : [];
+
+        return {
+          ...prompt,
+          preview_images: previewImages,
+          creator_name: creatorData?.display_name || 'Anonymous',
+          creator_avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${creatorData?.display_name || 'anonymous'}`,
+          category: prompt.category || 'Uncategorized',
+          price: typeof prompt.price === 'number' ? prompt.price : 0,
+        };
+      }));
+
+      setPrompts(promptsWithCreators);
+    } catch (error) {
+      console.error('Error fetching prompts:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchPrompts = async () => {
-      try {
-        // First get the prompt packs
-        const { data: promptData, error: promptError } = await supabase
-          .from('prompt_packs')
-          .select('*');
-
-        if (promptError) {
-          throw promptError;
-        }
-
-        // Then get creator info for each prompt pack
-        const promptsWithCreators = await Promise.all((promptData || []).map(async (prompt) => {
-          const { data: creatorData } = await supabase
-            .from('creator_profiles')
-            .select('display_name')
-            .eq('id', prompt.creator_id)
-            .single();
-
-          // Use the preview_images directly since they are already public URLs
-          const previewImages = Array.isArray(prompt.preview_images) 
-            ? prompt.preview_images.filter((url: string) => typeof url === 'string' && url.trim() !== '')
-            : [];
-
-          console.log('Raw prompt:', prompt); // Debug log
-          console.log('Preview images:', previewImages); // Debug log
-
-          return {
-            ...prompt,
-            preview_images: previewImages,
-            creator_name: creatorData?.display_name || 'Anonymous',
-            creator_avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${creatorData?.display_name || 'anonymous'}`,
-            category: prompt.category || 'Uncategorized',
-            price: typeof prompt.price === 'number' ? prompt.price : 0,
-          };
-        }));
-
-        console.log('Processed prompts:', promptsWithCreators); // Debug log
-
-        setPrompts(promptsWithCreators);
-      } catch (error) {
-        console.error('Error fetching prompts:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchPrompts();
+  }, [refreshKey]);
+
+  // Replace focus listener with a manual refresh function
+  const refreshData = () => {
+    setRefreshKey(key => key + 1);
+  };
+
+  // Add this function to the component's return value
+  React.useEffect(() => {
+    // Create a custom event listener for refresh
+    window.addEventListener('prompt-grid-refresh', refreshData);
+    return () => window.removeEventListener('prompt-grid-refresh', refreshData);
   }, []);
 
   if (loading) {
     return (
-      <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: {
-        xs: '1fr',
-        sm: 'repeat(2, 1fr)',
-        md: 'repeat(3, 1fr)',
-        lg: 'repeat(4, 1fr)'
-      }}}>
-        {[...Array(8)].map((_, index) => (
-          <Card key={index}>
-            <Skeleton variant="rectangular" height={200} />
-            <CardContent>
-              <Skeleton variant="text" />
-              <Skeleton variant="text" width="60%" />
-              <Skeleton variant="text" width="40%" />
-            </CardContent>
-          </Card>
+      <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', p: 3 }}>
+        {[1, 2, 3, 4].map((key) => (
+          <Skeleton 
+            key={key} 
+            variant="rectangular" 
+            sx={{ 
+              height: 400,
+              borderRadius: 2,
+            }} 
+          />
         ))}
       </Box>
     );
   }
 
   return (
-    <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: {
-      xs: '1fr',
-      sm: 'repeat(2, 1fr)',
-      md: 'repeat(3, 1fr)',
-      lg: 'repeat(4, 1fr)'
-    }}}>
+    <Box 
+      sx={{ 
+        display: 'grid',
+        gap: 3,
+        gridTemplateColumns: {
+          xs: '1fr',
+          sm: 'repeat(2, 1fr)',
+          md: 'repeat(3, 1fr)',
+          lg: 'repeat(4, 1fr)',
+        },
+        p: 3,
+      }}
+    >
       {prompts.map((prompt) => (
-        <Box key={prompt.id}>
-          <PromptCard 
-            prompt={prompt} 
+        <Box 
+          key={prompt.id}
+          sx={{ 
+            height: 400, // Fixed height for all cards
+            display: 'flex',
+          }}
+        >
+          <PromptCard
+            prompt={prompt}
             onClick={() => navigate(`/prompt/${prompt.id}`)}
           />
         </Box>

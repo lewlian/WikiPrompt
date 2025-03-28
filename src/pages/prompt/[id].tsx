@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import type { Database } from '../../types/database.types';
@@ -22,6 +22,7 @@ import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import LockIcon from '@mui/icons-material/Lock';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
+import PromptPackManager from '../../components/PromptPackManager';
 
 type PromptPack = Database['public']['Tables']['prompt_packs']['Row'] & {
   creator_profiles?: {
@@ -50,6 +51,7 @@ export default function PromptPackDetailPage() {
   const [hasPurchased, setHasPurchased] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
   const [relatedPacks, setRelatedPacks] = useState<PromptPack[]>([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchPromptPack = async () => {
@@ -329,6 +331,11 @@ export default function PromptPackDetailPage() {
               <IconButton onClick={handleFavorite} sx={{ ml: 1 }}>
                 {isFavorited ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
               </IconButton>
+              <PromptPackManager 
+                packId={promptPack.id} 
+                creatorId={promptPack.creator_id}
+                onDelete={() => navigate('/')} 
+              />
             </Box>
             <Chip label={promptPack.category} sx={{ mb: 2 }} />
 
