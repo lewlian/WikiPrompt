@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
+import type { Database } from '../../types/database.types';
 import {
   Box,
   Container,
@@ -21,44 +22,88 @@ import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import LockIcon from '@mui/icons-material/Lock';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
-import { PromptPackDetails } from '../../types/supabase';
+
+type PromptPack = Database['public']['Tables']['prompt_packs']['Row'] & {
+  creator_profiles?: {
+    display_name: string;
+    avatar_url: string | null;
+  };
+  creator_name?: string;
+  creator_avatar?: string;
+};
 
 // Fallback image for when preview is not available
-const FALLBACK_IMAGE = 'https://via.placeholder.com/400x400?text=No+Preview';
+const FALLBACK_IMAGE = 'https://placehold.co/400x400/e0e0e0/9e9e9e?text=No+Preview';
+
+// Helper function to calculate grid columns
+const getGridCols = (imageCount: number) => {
+  if (imageCount === 1) return 1;
+  if (imageCount === 2) return 2;
+  return 2; // For 3+ images, show 2x2 grid
+};
 
 export default function PromptPackDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const [promptPack, setPromptPack] = useState<PromptPackDetails | null>(null);
+  const [promptPack, setPromptPack] = useState<PromptPack | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasPurchased, setHasPurchased] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
-  const [relatedPacks, setRelatedPacks] = useState<PromptPackDetails[]>([]);
+  const [relatedPacks, setRelatedPacks] = useState<PromptPack[]>([]);
 
   useEffect(() => {
     const fetchPromptPack = async () => {
       if (!id) return;
 
       try {
+        console.log('Fetching prompt pack with ID:', id); // Debug log
+
         const { data: packData, error: packError } = await supabase
-          .from('prompt_pack_details')
+          .from('prompt_packs')
           .select('*')
           .eq('id', id)
           .single();
+
+        console.log('Raw pack data:', packData); // Debug log
+        console.log('Pack error:', packError); // Debug log
 
         if (packError) {
           throw packError;
         }
 
+        if (!packData) {
+          console.error('No data returned for prompt pack');
+          return;
+        }
+
+        // Get creator information
+        const { data: creatorData, error: creatorError } = await supabase
+          .from('creator_profiles')
+          .select('display_name, avatar_url')
+          .eq('id', packData.creator_id)
+          .single();
+
+        console.log('Creator data:', creatorData); // Debug log
+        console.log('Creator error:', creatorError); // Debug log
+
+        // Filter out any invalid URLs from preview_images
+        const validPreviewImages = Array.isArray(packData.preview_images)
+          ? packData.preview_images.filter((url: string) => typeof url === 'string' && url.trim() !== '')
+          : [];
+
+        console.log('Valid preview images:', validPreviewImages); // Debug log
+
         // Ensure all required fields are present
-        const validPackData = {
+        const validPackData: PromptPack = {
           ...packData,
-          preview_images: packData.preview_images || [],
-          creator_avatar: packData.creator_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${packData.creator_name}`,
+          preview_images: validPreviewImages,
+          creator_name: creatorData?.display_name || 'Anonymous',
+          creator_avatar: creatorData?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${creatorData?.display_name || 'anonymous'}`,
           category: packData.category || 'Uncategorized',
           price: packData.price || 0,
         };
 
+        console.log('Processed pack data:', validPackData); // Debug log
         setPromptPack(validPackData);
 
         // Check if user has purchased
@@ -75,22 +120,44 @@ export default function PromptPackDetailPage() {
 
         // Fetch related packs by same creator
         if (packData) {
-          const { data: relatedData } = await supabase
-            .from('prompt_pack_details')
+          console.log('Fetching related packs for creator:', packData.creator_id); // Debug log
+
+          // Get related packs
+          const { data: relatedPacksData, error: relatedError } = await supabase
+            .from('prompt_packs')
             .select('*')
             .eq('creator_id', packData.creator_id)
             .neq('id', id)
             .limit(3);
 
-          // Apply the same data validation to related packs
-          const validRelatedData = (relatedData || []).map(pack => ({
-            ...pack,
-            preview_images: pack.preview_images || [],
-            creator_avatar: pack.creator_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${pack.creator_name}`,
-            category: pack.category || 'Uncategorized',
-            price: pack.price || 0,
+          console.log('Related packs data:', relatedPacksData); // Debug log
+          console.log('Related packs error:', relatedError); // Debug log
+
+          if (relatedError) {
+            console.error('Error fetching related packs:', relatedError);
+          }
+
+          // Get creator info for related packs
+          const validRelatedData = await Promise.all((relatedPacksData || []).map(async (pack) => {
+            const { data: relatedCreatorData } = await supabase
+              .from('creator_profiles')
+              .select('display_name, avatar_url')
+              .eq('id', pack.creator_id)
+              .single();
+
+            return {
+              ...pack,
+              preview_images: Array.isArray(pack.preview_images) 
+                ? pack.preview_images.filter((url: string) => typeof url === 'string' && url.trim() !== '')
+                : [],
+              creator_name: relatedCreatorData?.display_name || 'Anonymous',
+              creator_avatar: relatedCreatorData?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${relatedCreatorData?.display_name || 'anonymous'}`,
+              category: pack.category || 'Uncategorized',
+              price: pack.price || 0,
+            };
           }));
 
+          console.log('Processed related packs:', validRelatedData); // Debug log
           setRelatedPacks(validRelatedData);
         }
       } catch (error) {
@@ -157,24 +224,76 @@ export default function PromptPackDetailPage() {
         {/* Left column */}
         <Box sx={{ flex: { xs: '0 0 100%', md: '0 0 66.666667%' } }}>
           {/* Image Gallery */}
-          <ImageList cols={2} gap={16}>
-            {(promptPack.preview_images.length > 0 ? promptPack.preview_images : [FALLBACK_IMAGE]).map((image, index) => (
-              <ImageListItem key={index}>
-                <img
-                  src={image}
-                  alt={`Preview ${index + 1}`}
-                  loading="lazy"
-                  style={{ borderRadius: 8, width: '100%', height: 'auto' }}
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    if (target.src !== FALLBACK_IMAGE) {
-                      target.src = FALLBACK_IMAGE;
-                    }
-                  }}
-                />
-              </ImageListItem>
-            ))}
-          </ImageList>
+          <Box sx={{ 
+            position: 'relative', 
+            height: { xs: 300, sm: 400, md: 500 }, 
+            borderRadius: 2,
+            overflow: 'hidden',
+            bgcolor: 'grey.100',
+          }}>
+            <ImageList 
+              sx={{ 
+                width: '100%', 
+                height: '100%', 
+                m: 0,
+                overflow: 'hidden',
+                '& .MuiImageListItem-root': {
+                  padding: 0,
+                  overflow: 'hidden',
+                },
+              }} 
+              cols={getGridCols(promptPack.preview_images.length)} 
+              rowHeight={promptPack.preview_images.length > 2 ? 250 : 500}
+              gap={8}
+            >
+              {(promptPack.preview_images && promptPack.preview_images.length > 0
+                ? promptPack.preview_images.slice(0, 4)
+                : [FALLBACK_IMAGE]
+              ).map((image, index) => (
+                <ImageListItem 
+                  key={index}
+                  sx={{ overflow: 'hidden' }}
+                >
+                  <img
+                    src={image}
+                    alt={`Preview ${index + 1}`}
+                    loading="lazy"
+                    style={{ 
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      display: 'block',
+                    }}
+                    onError={(e) => {
+                      console.error('Image failed to load:', image); // Debug log
+                      const target = e.target as HTMLImageElement;
+                      if (target.src !== FALLBACK_IMAGE) {
+                        target.src = FALLBACK_IMAGE;
+                      }
+                    }}
+                  />
+                </ImageListItem>
+              ))}
+            </ImageList>
+            {promptPack.preview_images && promptPack.preview_images.length > 4 && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  bottom: 16,
+                  right: 16,
+                  bgcolor: 'rgba(0, 0, 0, 0.5)',
+                  color: 'white',
+                  px: 2,
+                  py: 1,
+                  borderRadius: 2,
+                  fontSize: '1rem',
+                  fontWeight: 500,
+                }}
+              >
+                +{promptPack.preview_images.length - 4} more
+              </Box>
+            )}
+          </Box>
 
           {/* Prompt Content */}
           <Card sx={{ mt: 4 }}>
