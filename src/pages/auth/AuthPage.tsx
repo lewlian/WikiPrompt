@@ -1,114 +1,93 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   Container,
   Box,
-  Tabs,
-  Tab,
+  Typography,
   TextField,
   Button,
-  Typography,
-  Paper,
+  Tabs,
+  Tab,
+  Alert,
 } from '@mui/material';
-import { supabase } from '../../lib/supabaseClient';
 
-export default function AuthPage() {
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const [tab, setTab] = useState(searchParams.get('mode') === 'signup' ? 1 : 0);
+const AuthPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
-    setTab(newValue);
-    navigate(`/auth?mode=${newValue === 0 ? 'signin' : 'signup'}`, { replace: true });
-  };
+  const [error, setError] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { signIn, signUp } = useAuth();
+  const [tab, setTab] = useState(searchParams.get('mode') === 'signup' ? 1 : 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
-
+    setError(null);
     try {
       if (tab === 0) {
-        // Sign In
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        navigate('/');
+        await signIn(email, password);
       } else {
-        // Sign Up
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-        if (error) throw error;
-        // Show success message or redirect
-        navigate('/');
+        await signUp(email, password);
       }
+      navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading(false);
     }
   };
 
+  const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
+    setTab(newValue);
+    navigate(`/auth?mode=${newValue === 0 ? 'signin' : 'signup'}`);
+  };
+
   return (
-    <Container maxWidth="sm" sx={{ mt: 8 }}>
-      <Paper elevation={3} sx={{ p: 4 }}>
-        <Typography variant="h4" align="center" gutterBottom>
-          Welcome to WikiPrompt
+    <Container maxWidth="sm">
+      <Box sx={{ mt: 8, mb: 4 }}>
+        <Typography variant="h4" component="h1" gutterBottom align="center">
+          {tab === 0 ? 'Sign In' : 'Sign Up'}
         </Typography>
-        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-          <Tabs value={tab} onChange={handleTabChange} centered>
-            <Tab label="Sign In" />
-            <Tab label="Sign Up" />
-          </Tabs>
-        </Box>
+        <Tabs value={tab} onChange={handleTabChange} centered>
+          <Tab label="Sign In" />
+          <Tab label="Sign Up" />
+        </Tabs>
+      </Box>
 
-        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
-          {error && (
-            <Typography color="error" sx={{ mb: 2 }}>
-              {error}
-            </Typography>
-          )}
-
-          <TextField
-            fullWidth
-            label="Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            margin="normal"
-            required
-          />
-
-          <TextField
-            fullWidth
-            label="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            margin="normal"
-            required
-          />
-
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            size="large"
-            disabled={loading}
-            sx={{ mt: 3, mb: 2 }}
-          >
-            {loading ? 'Processing...' : tab === 0 ? 'Sign In' : 'Sign Up'}
-          </Button>
-        </Box>
-      </Paper>
+      <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+        <TextField
+          fullWidth
+          label="Email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          margin="normal"
+          required
+        />
+        <TextField
+          fullWidth
+          label="Password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          margin="normal"
+          required
+        />
+        <Button
+          type="submit"
+          fullWidth
+          variant="contained"
+          sx={{ mt: 3, mb: 2 }}
+        >
+          {tab === 0 ? 'Sign In' : 'Sign Up'}
+        </Button>
+      </Box>
     </Container>
   );
-} 
+};
+
+export default AuthPage; 

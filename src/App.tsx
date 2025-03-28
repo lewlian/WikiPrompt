@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import { AuthProvider } from './contexts/AuthContext';
 import DashboardLayout from './layouts/DashboardLayout';
-import AuthPage from './pages/auth/AuthPage';
+import AuthPage from './pages/auth';
 import PromptPackDetailPage from './pages/prompt/[id]';
 
 const theme = createTheme({
