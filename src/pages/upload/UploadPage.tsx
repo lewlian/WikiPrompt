@@ -101,7 +101,7 @@ export default function UploadPage() {
       const imageUrls = await Promise.all(
         images.map(async (file) => {
           const fileExt = file.name.split('.').pop();
-          const fileName = `${Math.random()}.${fileExt}`;
+          const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
           const filePath = `${user!.id}/${fileName}`;
 
           const { error: uploadError } = await supabase.storage
@@ -110,11 +110,30 @@ export default function UploadPage() {
 
           if (uploadError) throw uploadError;
 
-          const { data: { publicUrl } } = supabase.storage
-            .from('prompt-pack-images')
-            .getPublicUrl(filePath);
+          // Get the public URL using the proper Supabase storage URL format
+          const {
+            data: { publicUrl },
+          } = supabase.storage.from('prompt-pack-images').getPublicUrl(filePath);
 
-          return publicUrl;
+          // Ensure the URL is using HTTPS and is valid
+          if (!publicUrl) {
+            throw new Error('Failed to get public URL for uploaded image');
+          }
+
+          const secureUrl = publicUrl.replace('http://', 'https://');
+          
+          // Verify the URL is accessible
+          try {
+            const response = await fetch(secureUrl, { method: 'HEAD' });
+            if (!response.ok) {
+              throw new Error('Image URL is not accessible');
+            }
+          } catch (error) {
+            console.error('Error verifying image URL:', error);
+            throw new Error('Failed to verify image URL accessibility');
+          }
+
+          return secureUrl;
         })
       );
 
