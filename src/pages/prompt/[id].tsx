@@ -221,114 +221,111 @@ export default function PromptPackDetailPage() {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-        {/* Left column */}
-        <Box sx={{ flex: { xs: '0 0 100%', md: '0 0 66.666667%' } }}>
-          {/* Image Gallery */}
+    <Box sx={{ 
+      minHeight: '100vh',
+      bgcolor: 'rgb(15, 23, 42)',
+      color: 'white',
+      width: '100%',
+      overflowX: 'hidden'
+    }}>
+      <Container maxWidth={false} sx={{ 
+        height: '100%',
+        px: { xs: 2, sm: 4, md: 6, lg: 8 }
+      }}>
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: { xs: 'column', md: 'row' },
+          gap: 4,
+          py: 4,
+          maxWidth: '1800px',
+          mx: 'auto'
+        }}>
+          {/* Left column - Image Gallery */}
           <Box sx={{ 
-            position: 'relative', 
-            height: { xs: 300, sm: 400, md: 500 }, 
-            borderRadius: 2,
-            overflow: 'hidden',
-            bgcolor: 'grey.100',
+            width: { xs: '100%', md: '50%' },
+            position: { xs: 'relative', md: 'sticky' },
+            top: 24,
+            alignSelf: 'flex-start',
+            height: 'fit-content'
           }}>
-            <ImageList 
-              sx={{ 
-                width: '100%', 
-                height: '100%', 
-                m: 0,
-                overflow: 'hidden',
-                '& .MuiImageListItem-root': {
-                  padding: 0,
+            <Box sx={{ 
+              position: 'relative', 
+              height: { xs: 300, sm: 400, md: 500 }, 
+              borderRadius: 2,
+              overflow: 'hidden',
+              bgcolor: 'rgba(30, 41, 59, 0.5)',
+            }}>
+              <ImageList 
+                sx={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  m: 0,
                   overflow: 'hidden',
-                },
-              }} 
-              cols={getGridCols(promptPack.preview_images.length)} 
-              rowHeight={promptPack.preview_images.length > 2 ? 250 : 500}
-              gap={8}
-            >
-              {(promptPack.preview_images && promptPack.preview_images.length > 0
-                ? promptPack.preview_images.slice(0, 4)
-                : [FALLBACK_IMAGE]
-              ).map((image, index) => (
-                <ImageListItem 
-                  key={index}
-                  sx={{ overflow: 'hidden' }}
-                >
-                  <img
-                    src={image}
-                    alt={`Preview ${index + 1}`}
-                    loading="lazy"
-                    style={{ 
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                      display: 'block',
-                    }}
-                    onError={(e) => {
-                      console.error('Image failed to load:', image); // Debug log
-                      const target = e.target as HTMLImageElement;
-                      if (target.src !== FALLBACK_IMAGE) {
-                        target.src = FALLBACK_IMAGE;
-                      }
-                    }}
-                  />
-                </ImageListItem>
-              ))}
-            </ImageList>
-            {promptPack.preview_images && promptPack.preview_images.length > 4 && (
-              <Box
-                sx={{
-                  position: 'absolute',
-                  bottom: 16,
-                  right: 16,
-                  bgcolor: 'rgba(0, 0, 0, 0.5)',
-                  color: 'white',
-                  px: 2,
-                  py: 1,
-                  borderRadius: 2,
-                  fontSize: '1rem',
-                  fontWeight: 500,
-                }}
+                  '& .MuiImageListItem-root': {
+                    padding: 0,
+                    overflow: 'hidden',
+                  },
+                }} 
+                cols={getGridCols(promptPack.preview_images.length)} 
+                rowHeight={promptPack.preview_images.length > 2 ? 250 : 500}
+                gap={8}
               >
-                +{promptPack.preview_images.length - 4} more
-              </Box>
-            )}
+                {(promptPack.preview_images && promptPack.preview_images.length > 0
+                  ? promptPack.preview_images.slice(0, 4)
+                  : [FALLBACK_IMAGE]
+                ).map((image, index) => (
+                  <ImageListItem 
+                    key={index}
+                    sx={{ overflow: 'hidden' }}
+                  >
+                    <img
+                      src={image}
+                      alt={`Preview ${index + 1}`}
+                      loading="lazy"
+                      style={{ 
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        display: 'block',
+                      }}
+                      onError={(e) => {
+                        console.error('Image failed to load:', image);
+                        const target = e.target as HTMLImageElement;
+                        if (target.src !== FALLBACK_IMAGE) {
+                          target.src = FALLBACK_IMAGE;
+                        }
+                      }}
+                    />
+                  </ImageListItem>
+                ))}
+              </ImageList>
+            </Box>
           </Box>
 
-          {/* Prompt Content */}
-          <Card sx={{ mt: 4 }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                {hasPurchased ? <LockOpenIcon /> : <LockIcon />}
-                <Typography variant="h6" sx={{ ml: 1 }}>
-                  Prompt Content
-                </Typography>
-              </Box>
-              {hasPurchased ? (
-                <Typography>{promptPack.full_prompt}</Typography>
-              ) : (
-                <Typography color="text.secondary">
-                  Purchase this prompt pack to unlock the content
-                </Typography>
-              )}
-            </CardContent>
-          </Card>
-        </Box>
-
-        {/* Right column */}
-        <Box sx={{ flex: { xs: '0 0 100%', md: '0 0 33.333333%' } }}>
-          <Box sx={{ position: 'sticky', top: 24 }}>
-            {/* Title and Price */}
-            <Typography variant="h4" gutterBottom>
+          {/* Right column - Content */}
+          <Box sx={{ 
+            width: { xs: '100%', md: '50%' },
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 3,
+            pb: 4
+          }}>
+            {/* Title */}
+            <Typography variant="h4" sx={{ color: 'white', mb: 2 }}>
               {promptPack.title}
             </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h5" color="primary">
+            
+            {/* Price and Actions */}
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 2,
+              mb: 2
+            }}>
+              <Typography variant="h5" sx={{ color: 'rgb(37, 99, 235)' }}>
                 ${promptPack.price}
               </Typography>
-              <IconButton onClick={handleFavorite} sx={{ ml: 1 }}>
+              <IconButton onClick={handleFavorite} sx={{ color: 'white' }}>
                 {isFavorited ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
               </IconButton>
               <PromptPackManager 
@@ -337,7 +334,17 @@ export default function PromptPackDetailPage() {
                 onDelete={() => navigate('/')} 
               />
             </Box>
-            <Chip label={promptPack.category} sx={{ mb: 2 }} />
+
+            {/* Category */}
+            <Chip 
+              label={promptPack.category} 
+              sx={{ 
+                alignSelf: 'flex-start',
+                bgcolor: 'rgb(37, 99, 235)',
+                color: 'white',
+                mb: 2
+              }} 
+            />
 
             {/* Purchase Button */}
             <Button
@@ -346,48 +353,91 @@ export default function PromptPackDetailPage() {
               fullWidth
               onClick={handlePurchase}
               disabled={hasPurchased}
-              sx={{ mb: 4 }}
+              sx={{ 
+                bgcolor: 'rgb(37, 99, 235)',
+                '&:hover': {
+                  bgcolor: 'rgb(29, 78, 216)'
+                },
+                mb: 3
+              }}
             >
               {hasPurchased ? 'Purchased' : 'Purchase Now'}
             </Button>
 
             {/* Creator Info */}
-            <Card sx={{ mb: 4 }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Avatar src={promptPack.creator_avatar} sx={{ mr: 2 }} />
-                  <Box>
-                    <Typography variant="h6">{promptPack.creator_name}</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Creator
-                    </Typography>
-                  </Box>
-                </Box>
-                <Typography variant="body2">{promptPack.description}</Typography>
-              </CardContent>
-            </Card>
+            <Box sx={{ 
+              p: 2, 
+              bgcolor: 'rgba(30, 41, 59, 0.5)',
+              borderRadius: 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+              mb: 3
+            }}>
+              <Avatar src={promptPack.creator_avatar} />
+              <Box>
+                <Typography variant="subtitle1" sx={{ color: 'white' }}>
+                  {promptPack.creator_name}
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                  Creator
+                </Typography>
+              </Box>
+            </Box>
+
+            {/* Prompt Content */}
+            <Box sx={{ 
+              p: 2, 
+              bgcolor: 'rgba(30, 41, 59, 0.5)',
+              borderRadius: 1,
+              mb: 3
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                {hasPurchased ? <LockOpenIcon /> : <LockIcon />}
+                <Typography variant="h6" sx={{ color: 'white' }}>
+                  Prompt Content
+                </Typography>
+              </Box>
+              <Typography sx={{ color: hasPurchased ? 'white' : 'rgba(255, 255, 255, 0.7)' }}>
+                {hasPurchased ? promptPack.full_prompt : 'Purchase this prompt pack to unlock the content'}
+              </Typography>
+            </Box>
 
             {/* Related Packs */}
             {relatedPacks.length > 0 && (
-              <>
-                <Typography variant="h6" gutterBottom>
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="h6" gutterBottom sx={{ color: 'white', mb: 2 }}>
                   More from this creator
                 </Typography>
-                {relatedPacks.map((pack) => (
-                  <Card key={pack.id} sx={{ mb: 2 }}>
-                    <CardContent>
-                      <Typography variant="subtitle1">{pack.title}</Typography>
-                      <Typography variant="body2" color="text.secondary">
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {relatedPacks.map((pack) => (
+                    <Box 
+                      key={pack.id} 
+                      sx={{ 
+                        p: 2, 
+                        bgcolor: 'rgba(30, 41, 59, 0.5)',
+                        borderRadius: 1,
+                        cursor: 'pointer',
+                        '&:hover': {
+                          bgcolor: 'rgba(30, 41, 59, 0.7)'
+                        }
+                      }}
+                      onClick={() => navigate(`/prompt/${pack.id}`)}
+                    >
+                      <Typography variant="subtitle1" sx={{ color: 'white' }}>
+                        {pack.title}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
                         ${pack.price}
                       </Typography>
-                    </CardContent>
-                  </Card>
-                ))}
-              </>
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
             )}
           </Box>
         </Box>
-      </Box>
-    </Container>
+      </Container>
+    </Box>
   );
 } 
