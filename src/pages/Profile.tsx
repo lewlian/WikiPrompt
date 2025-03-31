@@ -144,7 +144,17 @@ const Profile = () => {
   };
 
   const renderPromptCard = (pack: PromptPack) => (
-    <Grid item xs={12} sm={6} md={4} key={pack.id}>
+    <Box 
+      key={pack.id} 
+      sx={{ 
+        width: { 
+          xs: '100%', 
+          sm: '50%', 
+          md: '33.333%' 
+        }, 
+        p: 1 
+      }}
+    >
       <Card 
         sx={{ 
           height: '100%', 
@@ -195,7 +205,7 @@ const Profile = () => {
           </Box>
         </CardActions>
       </Card>
-    </Grid>
+    </Box>
   );
 
   const renderEmptyState = (type: 'upload' | 'browse') => (
