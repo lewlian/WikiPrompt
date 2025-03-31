@@ -225,49 +225,59 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, onClick }) => {
   );
 };
 
-const PromptGrid: React.FC = () => {
-  const navigate = useNavigate();
+interface PromptGridProps {
+  category: string;
+  aiModel: string;
+  priceRange: number[];
+  sortBy: string;
+}
+
+const PromptGrid: React.FC<PromptGridProps> = ({
+  category,
+  aiModel,
+  priceRange,
+  sortBy,
+}) => {
   const [prompts, setPrompts] = useState<PromptPackDetails[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshKey, setRefreshKey] = useState(0); // Add refresh key
+  const navigate = useNavigate();
 
   const fetchPrompts = async () => {
     try {
       setLoading(true);
-      // First get the prompt packs
-      const { data: promptData, error: promptError } = await supabase
-        .from('prompt_packs')
-        .select('*')
-        .order('created_at', { ascending: false });
+      let query = supabase.from('prompt_packs').select('*');
 
-      if (promptError) {
-        throw promptError;
+      // Apply filters
+      if (category !== 'All') {
+        query = query.eq('category', category);
+      }
+      if (aiModel !== 'All') {
+        query = query.eq('ai_model', aiModel);
+      }
+      query = query.gte('price', priceRange[0]).lte('price', priceRange[1]);
+
+      // Apply sorting
+      switch (sortBy) {
+        case 'newest':
+          query = query.order('created_at', { ascending: false });
+          break;
+        case 'popular':
+          query = query.order('downloads', { ascending: false });
+          break;
+        case 'trending':
+          query = query.order('views', { ascending: false });
+          break;
+        default:
+          query = query.order('created_at', { ascending: false });
       }
 
-      // Then get creator info for each prompt pack
-      const promptsWithCreators = await Promise.all((promptData || []).map(async (prompt) => {
-        const { data: creatorData } = await supabase
-          .from('creator_profiles')
-          .select('display_name')
-          .eq('id', prompt.creator_id)
-          .single();
+      const { data, error } = await query;
 
-        // Use the preview_images directly since they are already public URLs
-        const previewImages = Array.isArray(prompt.preview_images) 
-          ? prompt.preview_images.filter((url: string) => typeof url === 'string' && url.trim() !== '')
-          : [];
+      if (error) {
+        throw error;
+      }
 
-        return {
-          ...prompt,
-          preview_images: previewImages,
-          creator_name: creatorData?.display_name || 'Anonymous',
-          creator_avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${creatorData?.display_name || 'anonymous'}`,
-          category: prompt.category || 'Uncategorized',
-          price: typeof prompt.price === 'number' ? prompt.price : 0,
-        };
-      }));
-
-      setPrompts(promptsWithCreators);
+      setPrompts(data || []);
     } catch (error) {
       console.error('Error fetching prompts:', error);
     } finally {
@@ -277,19 +287,7 @@ const PromptGrid: React.FC = () => {
 
   useEffect(() => {
     fetchPrompts();
-  }, [refreshKey]);
-
-  // Replace focus listener with a manual refresh function
-  const refreshData = () => {
-    setRefreshKey(key => key + 1);
-  };
-
-  // Add this function to the component's return value
-  React.useEffect(() => {
-    // Create a custom event listener for refresh
-    window.addEventListener('prompt-grid-refresh', refreshData);
-    return () => window.removeEventListener('prompt-grid-refresh', refreshData);
-  }, []);
+  }, [category, aiModel, priceRange, sortBy]);
 
   if (loading) {
     return (
