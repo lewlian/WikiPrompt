@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Box, 
@@ -19,33 +19,15 @@ import {
   AccountCircle as AccountCircleIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabaseClient';
+import { useUserProfile } from '../hooks/useUserProfile';
 
 const ProfileMenu: React.FC = () => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const open = Boolean(anchorEl);
   const { user, signOut } = useAuth();
+  const { profile } = useUserProfile();
   const navigate = useNavigate();
   
-  useEffect(() => {
-    const fetchUserAvatar = async () => {
-      if (!user) return;
-      
-      const { data, error } = await supabase
-        .from('users')
-        .select('avatar_url')
-        .eq('id', user.id)
-        .single();
-      
-      if (data && !error) {
-        setAvatarUrl(data.avatar_url);
-      }
-    };
-
-    fetchUserAvatar();
-  }, [user]);
-
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
   };
@@ -113,7 +95,7 @@ const ProfileMenu: React.FC = () => {
         >
           <Avatar 
             sx={{ width: 32, height: 32 }}
-            src={avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`}
+            src={profile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`}
           >
             {getInitials()}
           </Avatar>
@@ -144,7 +126,7 @@ const ProfileMenu: React.FC = () => {
       >
         <Box sx={{ px: 2, py: 1 }}>
           <Typography variant="subtitle1" noWrap>
-            {user.email}
+            {profile?.full_name || profile?.username || user.email}
           </Typography>
         </Box>
         <Divider />

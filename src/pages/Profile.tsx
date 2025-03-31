@@ -15,6 +15,13 @@ import {
   CardActions,
   IconButton,
   Chip,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Alert,
+  CircularProgress,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -22,6 +29,9 @@ import { supabase } from '../lib/supabaseClient';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
+import EditIcon from '@mui/icons-material/Edit';
+import { styled } from '@mui/material/styles';
+import { useUserProfile } from '../hooks/useUserProfile';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -65,28 +75,20 @@ interface PromptPack {
 
 const Profile = () => {
   const [tabValue, setTabValue] = useState(0);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [myPacks, setMyPacks] = useState<PromptPack[]>([]);
   const [collectedPacks, setCollectedPacks] = useState<PromptPack[]>([]);
   const [likedPacks, setLikedPacks] = useState<PromptPack[]>([]);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editForm, setEditForm] = useState<UserProfile | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
+  const { profile, refreshProfile } = useUserProfile();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from('users')
-        .select('avatar_url, username, bio, full_name')
-        .eq('id', user.id)
-        .single();
-
-      if (data && !error) {
-        setProfile(data);
-      }
-    };
-
     const fetchMyPacks = async () => {
       if (!user) return;
 
@@ -133,7 +135,6 @@ const Profile = () => {
       }
     };
 
-    fetchProfile();
     fetchMyPacks();
     fetchCollectedPacks();
     fetchLikedPacks();
@@ -141,6 +142,127 @@ const Profile = () => {
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
+  };
+
+  const handleEditClick = () => {
+    setEditForm(profile);
+    setAvatarPreview(profile?.avatar_url || null);
+    setIsEditMode(true);
+  };
+
+  const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setAvatarFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!user || !editForm) return;
+    
+    setError(null);
+    setIsLoading(true);
+    try {
+      let avatarUrl = editForm.avatar_url;
+
+      // Upload new avatar if selected
+      if (avatarFile) {
+        // Validate file size (max 5MB)
+        if (avatarFile.size > 5 * 1024 * 1024) {
+          throw new Error('Avatar image must be less than 5MB');
+        }
+
+        // Validate file type
+        const fileType = avatarFile.type;
+        if (!['image/jpeg', 'image/png', 'image/gif'].includes(fileType)) {
+          throw new Error('Avatar must be a JPEG, PNG, or GIF file');
+        }
+
+        const fileExt = avatarFile.name.split('.').pop();
+        const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
+
+        // First, try to delete the old avatar if it exists
+        if (profile?.avatar_url) {
+          try {
+            const oldFilePath = profile.avatar_url.split('/').pop();
+            if (oldFilePath) {
+              await supabase.storage
+                .from('avatars')
+                .remove([`${user.id}/${oldFilePath}`]);
+            }
+          } catch (error) {
+            console.error('Error removing old avatar:', error);
+            // Continue with upload even if delete fails
+          }
+        }
+
+        const { error: uploadError, data } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, avatarFile, {
+            cacheControl: '3600',
+            upsert: true,
+            contentType: fileType
+          });
+
+        if (uploadError) {
+          console.error('Error uploading avatar:', uploadError);
+          throw new Error('Failed to upload avatar. Please try again.');
+        }
+
+        if (!data) {
+          throw new Error('Failed to upload avatar. No data returned.');
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+
+        avatarUrl = publicUrl;
+      }
+
+      // Update user profile
+      const { error } = await supabase
+        .from('users')
+        .update({
+          full_name: editForm.full_name,
+          username: editForm.username,
+          bio: editForm.bio,
+          avatar_url: avatarUrl,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Error updating profile:', error);
+        throw new Error('Failed to update profile. Please try again.');
+      }
+
+      // Refresh the profile data
+      await refreshProfile();
+
+      setIsEditMode(false);
+      setAvatarFile(null);
+      setAvatarPreview(null);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'An error occurred while updating profile');
+      // Don't exit edit mode on error
+      return;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditMode(false);
+    setEditForm(null);
+    setAvatarFile(null);
+    setAvatarPreview(null);
   };
 
   const renderPromptCard = (pack: PromptPack) => (
@@ -242,23 +364,106 @@ const Profile = () => {
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Paper sx={{ p: 4, mb: 4 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
-          <Avatar
-            src={profile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.email || 'anonymous'}`}
-            alt={profile?.username || user?.email}
-            sx={{ width: 120, height: 120 }}
-          />
-          <Box>
-            <Typography variant="h4" gutterBottom>
-              {profile.full_name || profile.username || user.email}
-            </Typography>
-            {profile.username && (
-              <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-                @{profile.username}
-              </Typography>
+          <Box sx={{ position: 'relative' }}>
+            <Avatar
+              src={isEditMode ? (avatarPreview || undefined) : (profile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.email || 'anonymous'}`)}
+              alt={profile?.username || user?.email}
+              sx={{ width: 120, height: 120 }}
+            />
+            {isEditMode && (
+              <Button
+                component="label"
+                sx={{
+                  position: 'absolute',
+                  bottom: 0,
+                  right: 0,
+                  minWidth: 'auto',
+                  p: 1,
+                  bgcolor: 'background.paper',
+                  '&:hover': {
+                    bgcolor: 'action.hover',
+                  },
+                }}
+              >
+                <EditIcon fontSize="small" />
+                <input
+                  type="file"
+                  hidden
+                  accept="image/jpeg,image/png,image/gif"
+                  onChange={handleAvatarChange}
+                />
+              </Button>
             )}
-            <Typography variant="body1">
-              {profile.bio || 'No bio provided'}
-            </Typography>
+          </Box>
+          <Box sx={{ ml: 3, flexGrow: 1 }}>
+            {isEditMode ? (
+              <Box>
+                {error && (
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    {error}
+                  </Alert>
+                )}
+                <TextField
+                  fullWidth
+                  label="Display Name"
+                  value={editForm?.full_name || ''}
+                  onChange={(e) => setEditForm(prev => prev ? { ...prev, full_name: e.target.value } : null)}
+                  sx={{ mb: 2 }}
+                />
+                <TextField
+                  fullWidth
+                  label="Username"
+                  value={editForm?.username || ''}
+                  onChange={(e) => setEditForm(prev => prev ? { ...prev, username: e.target.value } : null)}
+                  sx={{ mb: 2 }}
+                />
+                <TextField
+                  fullWidth
+                  label="Bio"
+                  multiline
+                  rows={3}
+                  value={editForm?.bio || ''}
+                  onChange={(e) => setEditForm(prev => prev ? { ...prev, bio: e.target.value } : null)}
+                  sx={{ mb: 2 }}
+                />
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Button
+                    variant="contained"
+                    onClick={handleSaveProfile}
+                    disabled={isLoading}
+                    startIcon={isLoading ? <CircularProgress size={20} /> : null}
+                  >
+                    {isLoading ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={handleCancelEdit}
+                    disabled={isLoading}
+                  >
+                    Cancel
+                  </Button>
+                </Box>
+              </Box>
+            ) : (
+              <>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="h4" gutterBottom sx={{ mb: 0, mr: 2 }}>
+                    {profile.full_name || profile.username || user.email}
+                  </Typography>
+                  <IconButton onClick={handleEditClick} size="small">
+                    <EditIcon />
+                  </IconButton>
+                </Box>
+                {profile.username && (
+                  <Typography variant="subtitle1" color="text.secondary" gutterBottom>
+                    @{profile.username}
+                  </Typography>
+                )}
+                <Typography variant="body1">
+                  {profile.bio || 'No bio provided'}
+                </Typography>
+              </>
+            )}
           </Box>
         </Box>
       </Paper>
