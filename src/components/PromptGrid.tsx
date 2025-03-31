@@ -53,27 +53,38 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, onClick }) => {
 
   const handleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click when clicking favorite button
-    
+
     if (!user) {
+      // Redirect to login page if user is not logged in
       navigate('/auth?mode=signin');
       return;
     }
 
     try {
       if (isFavorited) {
-        await supabase
+        // Remove from favorites
+        const { error } = await supabase
           .from('favorites')
           .delete()
           .eq('user_id', user.id)
           .eq('prompt_pack_id', prompt.id);
+
+        if (error) throw error;
+        setIsFavorited(false);
         setFavoriteCount(prev => prev - 1);
       } else {
-        await supabase
+        // Add to favorites
+        const { error } = await supabase
           .from('favorites')
-          .insert({ user_id: user.id, prompt_pack_id: prompt.id });
+          .insert({
+            user_id: user.id,
+            prompt_pack_id: prompt.id,
+          });
+
+        if (error) throw error;
+        setIsFavorited(true);
         setFavoriteCount(prev => prev + 1);
       }
-      setIsFavorited(!isFavorited);
     } catch (error) {
       console.error('Error toggling favorite:', error);
     }
@@ -275,7 +286,7 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, onClick }) => {
           alignItems: 'center',
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Tooltip title={isFavorited ? "Remove from favorites" : "Add to favorites"}>
+            <Tooltip title={!user ? "Sign in to favorite" : (isFavorited ? "Remove from favorites" : "Add to favorites")}>
               <IconButton 
                 size="small" 
                 onClick={handleFavorite}
@@ -339,11 +350,14 @@ const PromptGrid: React.FC<PromptGridProps> = ({
   const { user } = useAuth();
   const [promptPacks, setPromptPacks] = useState<PromptPackDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const fetchPrompts = async () => {
-    setIsLoading(true);
     try {
+      setIsLoading(true);
+      setError(null);
+
       let query = supabase
         .from('prompt_packs')
         .select(`
@@ -390,8 +404,27 @@ const PromptGrid: React.FC<PromptGridProps> = ({
 
       if (promptError) {
         console.error('Error fetching prompts:', promptError);
+        setError(promptError instanceof Error ? promptError.message : 'Failed to fetch prompts');
         return;
       }
+
+      // Get favorite counts for all prompt packs using RPC
+      const { data: favoriteCounts } = await supabase
+        .rpc('get_favorite_counts');
+      
+      console.log('Raw favorite counts from Supabase:', favoriteCounts);
+
+      interface FavoriteCount {
+        prompt_pack_id: string;
+        count: number;
+      }
+
+      const favoriteCountMap = (favoriteCounts as FavoriteCount[] || []).reduce((acc: Record<string, number>, curr: FavoriteCount) => {
+        acc[curr.prompt_pack_id] = curr.count;
+        return acc;
+      }, {});
+      
+      console.log('Transformed favorite count map:', favoriteCountMap);
 
       // Get user's favorites if logged in
       let userFavorites: string[] = [];
@@ -400,19 +433,19 @@ const PromptGrid: React.FC<PromptGridProps> = ({
           .from('favorites')
           .select('prompt_pack_id')
           .eq('user_id', user.id);
-        
         userFavorites = favoritesData?.map(f => f.prompt_pack_id) || [];
+        console.log('User favorites:', userFavorites);
       }
 
-      // Get user's purchased packs
+      // Get user's purchases if logged in
       let userPurchases: string[] = [];
       if (user) {
         const { data: purchasesData } = await supabase
           .from('purchases')
           .select('prompt_pack_id')
           .eq('user_id', user.id);
-        
         userPurchases = purchasesData?.map(p => p.prompt_pack_id) || [];
+        console.log('User purchases:', userPurchases);
       }
 
       // Get creator profiles in a separate query
@@ -449,15 +482,16 @@ const PromptGrid: React.FC<PromptGridProps> = ({
             `https://api.dicebear.com/7.x/avataaars/svg?seed=${creator?.full_name || creator?.username || 'anonymous'}`,
           created_at: pack.created_at,
           updated_at: pack.updated_at,
-          favorite_count: pack.favorites?.[0]?.count || 0,
+          favorite_count: favoriteCountMap[pack.id] || 0,
           is_favorited: userFavorites.includes(pack.id),
           has_purchased: userPurchases.includes(pack.id),
         };
       });
 
       setPromptPacks(transformedData);
-    } catch (error) {
-      console.error('Error in fetchPrompts:', error);
+    } catch (err) {
+      console.error('Error fetching prompts:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch prompts');
     } finally {
       setIsLoading(false);
     }
