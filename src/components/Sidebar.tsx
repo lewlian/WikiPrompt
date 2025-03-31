@@ -15,25 +15,20 @@ import {
 } from '@mui/material';
 
 interface SidebarProps {
-  selectedCategory: string;
   selectedAiModel: string;
   priceRange: number[];
   sortBy: string;
-  onCategoryChange: (category: string) => void;
   onAiModelChange: (model: string) => void;
   onPriceRangeChange: (range: number[]) => void;
   onSortByChange: (sort: string) => void;
 }
 
-const categories = ['All', 'Writing', 'Programming', 'Art & Design', 'Business', 'Education', 'Entertainment', 'Productivity', 'Other'];
 const aiModels = ['All', 'GPT-4', 'GPT-3.5', 'Claude 2', 'Claude 3', 'Gemini Pro', 'Llama 2', 'Mistral', 'Other'];
 
 const Sidebar: React.FC<SidebarProps> = ({
-  selectedCategory,
   selectedAiModel,
   priceRange,
   sortBy,
-  onCategoryChange,
   onAiModelChange,
   onPriceRangeChange,
   onSortByChange,
@@ -61,28 +56,14 @@ const Sidebar: React.FC<SidebarProps> = ({
         position: 'sticky', // Make the sidebar sticky
         top: 24, // Add some top spacing
         height: 'fit-content', // Allow the height to adjust to content
+        bgcolor: 'rgba(30, 41, 59, 0.5)', // Match the category section style
+        color: 'white',
+        borderRadius: 2,
       }}
     >
       <Typography variant="h6" sx={{ mb: 2 }}>
         Filters
       </Typography>
-
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="subtitle1" sx={{ mb: 1 }}>
-          Categories
-        </Typography>
-        <List dense>
-          {categories.map((category) => (
-            <ListItemButton 
-              key={category}
-              selected={category === selectedCategory}
-              onClick={() => onCategoryChange(category)}
-            >
-              <ListItemText primary={category} />
-            </ListItemButton>
-          ))}
-        </List>
-      </Box>
 
       <Box sx={{ mb: 3 }}>
         <Typography variant="subtitle1" sx={{ mb: 1 }}>
@@ -94,6 +75,19 @@ const Sidebar: React.FC<SidebarProps> = ({
               key={model}
               selected={model === selectedAiModel}
               onClick={() => onAiModelChange(model)}
+              sx={{
+                borderRadius: 1,
+                '&.Mui-selected': {
+                  backgroundColor: 'primary.main',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: 'primary.dark',
+                  }
+                },
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                }
+              }}
             >
               <ListItemText primary={model} />
             </ListItemButton>
@@ -116,10 +110,15 @@ const Sidebar: React.FC<SidebarProps> = ({
               '& .MuiSlider-thumb': {
                 width: 12,
                 height: 12,
+                color: 'primary.main',
               },
               '& .MuiSlider-track': {
                 height: 4,
+                color: 'primary.main',
               },
+              '& .MuiSlider-rail': {
+                color: 'rgba(255, 255, 255, 0.3)',
+              }
             }}
           />
         </Box>
@@ -140,6 +139,23 @@ const Sidebar: React.FC<SidebarProps> = ({
               max: priceRange[1],
               style: { width: '80px' }
             }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                color: 'white',
+                '& fieldset': {
+                  borderColor: 'rgba(255, 255, 255, 0.2)',
+                },
+                '&:hover fieldset': {
+                  borderColor: 'rgba(255, 255, 255, 0.3)',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: 'primary.main',
+                },
+              },
+              '& .MuiInputLabel-root': {
+                color: 'rgba(255, 255, 255, 0.7)',
+              },
+            }}
           />
           <TextField
             size="small"
@@ -152,17 +168,49 @@ const Sidebar: React.FC<SidebarProps> = ({
               max: 100,
               style: { width: '80px' }
             }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                color: 'white',
+                '& fieldset': {
+                  borderColor: 'rgba(255, 255, 255, 0.2)',
+                },
+                '&:hover fieldset': {
+                  borderColor: 'rgba(255, 255, 255, 0.3)',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: 'primary.main',
+                },
+              },
+              '& .MuiInputLabel-root': {
+                color: 'rgba(255, 255, 255, 0.7)',
+              },
+            }}
           />
         </Box>
       </Box>
 
       <Box sx={{ mb: 3 }}>
         <FormControl fullWidth size="small">
-          <InputLabel>Sort By</InputLabel>
+          <InputLabel sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>Sort By</InputLabel>
           <Select
             value={sortBy}
             label="Sort By"
             onChange={(e) => onSortByChange(e.target.value)}
+            sx={{
+              color: 'white',
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'rgba(255, 255, 255, 0.2)',
+              },
+              '&:hover .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'rgba(255, 255, 255, 0.3)',
+              },
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'primary.main',
+              },
+              '& .MuiSvgIcon-root': {
+                color: 'rgba(255, 255, 255, 0.7)',
+              }
+            }}
           >
             <MenuItem value="trending">Trending</MenuItem>
             <MenuItem value="popular">Popular</MenuItem>
