@@ -38,6 +38,11 @@ interface PromptCardProps {
 }
 
 const PromptCard: React.FC<PromptCardProps> = ({ prompt, onClick }) => {
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+
   // Get preview images or use fallback
   const previewImages = Array.isArray(prompt.preview_images) && prompt.preview_images.length > 0
     ? prompt.preview_images.filter(url => typeof url === 'string' && url.trim() !== '')
@@ -220,6 +225,22 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, onClick }) => {
             {prompt.price ? `$${prompt.price.toFixed(2)}` : 'Free'}
           </Typography>
         </Box>
+
+        <Typography 
+          variant="body2" 
+          color="text.secondary" 
+          sx={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            mb: 'auto',
+            minHeight: '2.5em',
+          }}
+        >
+          {formatDate(prompt.created_at)}
+        </Typography>
       </CardContent>
     </Card>
   );
@@ -276,6 +297,13 @@ const PromptGrid: React.FC<PromptGridProps> = ({
       if (error) {
         throw error;
       }
+
+      // Debug log to check created_at field
+      console.log('Prompt packs with created_at:', data?.map(pack => ({
+        id: pack.id,
+        title: pack.title,
+        created_at: pack.created_at
+      })));
 
       setPrompts(data || []);
     } catch (error) {

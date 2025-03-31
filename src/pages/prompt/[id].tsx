@@ -53,6 +53,11 @@ export default function PromptPackDetailPage() {
   const [relatedPacks, setRelatedPacks] = useState<PromptPack[]>([]);
   const navigate = useNavigate();
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+
   useEffect(() => {
     const fetchPromptPack = async () => {
       if (!id) return;
@@ -324,6 +329,9 @@ export default function PromptPackDetailPage() {
             }}>
               <Typography variant="h5" sx={{ color: 'rgb(37, 99, 235)' }}>
                 ${promptPack.price}
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                Uploaded on {formatDate(promptPack.created_at)}
               </Typography>
               <IconButton onClick={handleFavorite} sx={{ color: 'white' }}>
                 {isFavorited ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
