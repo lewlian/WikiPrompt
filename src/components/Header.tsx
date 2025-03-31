@@ -2,8 +2,9 @@ import React from 'react';
 import { AppBar, Toolbar, Typography, Button, Box, InputBase } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import SearchIcon from '@mui/icons-material/Search';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import ProfileMenu from '../components/ProfileMenu';
 
 const Search = styled('div')(({ theme }) => ({
   position: 'relative',
@@ -45,7 +46,8 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
 
 const Header = () => {
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const location = useLocation();
+  const { user } = useAuth();
 
   const handleUploadClick = () => {
     navigate('/upload');
@@ -55,12 +57,18 @@ const Header = () => {
     navigate(`/auth?mode=${mode}`);
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-  };
+  const isHomePage = location.pathname === '/';
 
   return (
-    <AppBar position="static" color="default" elevation={1}>
+    <AppBar 
+      position="fixed" 
+      color="default" 
+      elevation={1}
+      sx={{ 
+        zIndex: (theme) => theme.zIndex.drawer + 1,
+        backgroundColor: 'background.paper'
+      }}
+    >
       <Toolbar>
         <Typography 
           variant="h6" 
@@ -70,15 +78,17 @@ const Header = () => {
         >
           WikiPrompt
         </Typography>
-        <Search>
-          <SearchIconWrapper>
-            <SearchIcon />
-          </SearchIconWrapper>
-          <StyledInputBase
-            placeholder="Search prompts..."
-            inputProps={{ 'aria-label': 'search' }}
-          />
-        </Search>
+        {isHomePage && (
+          <Search>
+            <SearchIconWrapper>
+              <SearchIcon />
+            </SearchIconWrapper>
+            <StyledInputBase
+              placeholder="Search prompts..."
+              inputProps={{ 'aria-label': 'search' }}
+            />
+          </Search>
+        )}
         <Box sx={{ flexGrow: 1 }} />
         {user ? (
           <>
@@ -92,7 +102,7 @@ const Header = () => {
                 Upload Prompt
               </Button>
             )}
-            <Button onClick={handleSignOut}>Sign Out</Button>
+            <ProfileMenu />
           </>
         ) : (
           <>
