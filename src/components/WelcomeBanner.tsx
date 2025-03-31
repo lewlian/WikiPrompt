@@ -26,32 +26,36 @@ const SLOGANS = [
   }
 ];
 
-// Sample gallery images (replace with your actual AI-generated images)
-const GALLERY_IMAGES = [
-  [
-    '/gallery/creative1.jpg',
-    '/gallery/creative2.jpg',
-    '/gallery/creative3.jpg',
-    '/gallery/creative4.jpg'
-  ],
-  [
-    '/gallery/business1.jpg',
-    '/gallery/business2.jpg',
-    '/gallery/business3.jpg',
-    '/gallery/business4.jpg'
-  ],
-  [
-    '/gallery/tech1.jpg',
-    '/gallery/tech2.jpg',
-    '/gallery/tech3.jpg',
-    '/gallery/tech4.jpg'
-  ],
-  [
-    '/gallery/art1.jpg',
-    '/gallery/art2.jpg',
-    '/gallery/art3.jpg',
-    '/gallery/art4.jpg'
-  ]
+interface GalleryImage {
+  src: string;
+  alt: string;
+}
+
+const GALLERY_IMAGES: GalleryImage[] = [
+  {
+    src: '/gallery/creative/creative-1.png',
+    alt: 'Creative AI Art',
+  },
+  {
+    src: '/gallery/creative/creative-2.png',
+    alt: 'AI Generated Design',
+  },
+  {
+    src: '/gallery/creative/creative-3.png',
+    alt: 'Digital Artwork',
+  },
+  {
+    src: '/gallery/creative/creative-4.png',
+    alt: 'AI Illustration',
+  },
+  {
+    src: '/gallery/creative/creative-5.png',
+    alt: 'Creative Design',
+  },
+  {
+    src: '/gallery/creative/creative-6.png',
+    alt: 'AI Art',
+  },
 ];
 
 const WelcomeBanner: React.FC = () => {
@@ -141,34 +145,38 @@ const WelcomeBanner: React.FC = () => {
             </Typography>
           </Box>
 
-          {/* Gallery Grid */}
-          <Box
-            sx={{
-              flex: 1,
-              display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: 2,
-              maxWidth: { xs: '100%', md: '600px' },
-            }}
-          >
-            {GALLERY_IMAGES[currentSlogan].map((image, index) => (
+          {/* Gallery Section */}
+          <Box sx={{ 
+            display: 'grid', 
+            gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)' },
+            gap: 2,
+            mt: 4,
+            width: '100%',
+            maxWidth: '800px',
+            mx: 'auto'
+          }}>
+            {GALLERY_IMAGES.map((image: GalleryImage, index: number) => (
               <Box
                 key={index}
                 sx={{
-                  height: index % 3 === 0 ? '240px' : '180px',
-                  borderRadius: 2,
+                  position: 'relative',
+                  paddingTop: '100%',
                   overflow: 'hidden',
+                  borderRadius: 2,
+                  bgcolor: 'rgba(255, 255, 255, 0.1)',
                   transition: 'transform 0.3s ease-in-out',
                   '&:hover': {
                     transform: 'scale(1.05)',
                   },
-                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
                 }}
               >
                 <img
-                  src={image}
-                  alt={`Gallery item ${index + 1}`}
+                  src={image.src}
+                  alt={image.alt}
                   style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
                     width: '100%',
                     height: '100%',
                     objectFit: 'cover',
