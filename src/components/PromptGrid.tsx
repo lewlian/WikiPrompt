@@ -88,8 +88,6 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, onClick }) => {
     ? prompt.preview_images.filter(url => typeof url === 'string' && url.trim() !== '')
     : [FALLBACK_IMAGE];
 
-  console.log('Preview images for prompt:', prompt.title, previewImages); // Debug log
-
   // Calculate grid columns based on number of images
   const getGridCols = (imageCount: number) => {
     if (imageCount === 1) return 1;

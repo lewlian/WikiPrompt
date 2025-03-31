@@ -66,8 +66,6 @@ export default function PromptPackDetailPage() {
       if (!id) return;
 
       try {
-        console.log('Fetching prompt pack with ID:', id);
-
         const { data: packData, error: packError } = await supabase
           .from('prompt_packs')
           .select(`

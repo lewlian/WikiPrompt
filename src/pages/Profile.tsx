@@ -243,9 +243,9 @@ const Profile = () => {
       <Paper sx={{ p: 4, mb: 4 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
           <Avatar
-            src={profile.avatar_url || undefined}
-            alt={profile.username || user.email}
-            sx={{ width: 120, height: 120, mr: 4 }}
+            src={profile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.email || 'anonymous'}`}
+            alt={profile?.username || user?.email}
+            sx={{ width: 120, height: 120 }}
           />
           <Box>
             <Typography variant="h4" gutterBottom>
