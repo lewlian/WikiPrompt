@@ -69,8 +69,10 @@ interface PromptPack {
   category: string;
   price: number;
   favorite_count: number;
+  creator_id: string;
   creator_name: string;
-  creator_avatar_url: string | null;
+  creator_avatar: string;
+  created_at: string;
 }
 
 const Profile = () => {
@@ -92,47 +94,152 @@ const Profile = () => {
     const fetchMyPacks = async () => {
       if (!user) return;
 
-      const { data, error } = await supabase
-        .from('prompt_pack_details')
-        .select('*')
+      const { data: promptData, error: promptError } = await supabase
+        .from('prompt_packs')
+        .select(`
+          *,
+          favorites:favorites(count)
+        `)
         .eq('creator_id', user.id);
 
-      if (data && !error) {
-        setMyPacks(data);
+      if (promptError) {
+        console.error('Error fetching my packs:', promptError);
+        return;
       }
+
+      // Get creator information
+      const { data: creatorData } = await supabase
+        .from('users')
+        .select('id, full_name, username, avatar_url')
+        .eq('id', user.id)
+        .single();
+
+      const transformedData = (promptData || []).map((pack: any) => ({
+        id: pack.id,
+        title: pack.title,
+        preview_images: Array.isArray(pack.preview_images)
+          ? pack.preview_images.filter((url: string) => typeof url === 'string' && url.trim() !== '')
+          : [],
+        category: pack.category || 'Uncategorized',
+        price: pack.price || 0,
+        favorite_count: pack.favorites?.[0]?.count || 0,
+        creator_id: pack.creator_id,
+        creator_name: creatorData?.full_name || creatorData?.username || 'Anonymous',
+        creator_avatar: creatorData?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${creatorData?.full_name || creatorData?.username || 'anonymous'}`,
+        created_at: pack.created_at
+      }));
+
+      setMyPacks(transformedData);
     };
 
     const fetchCollectedPacks = async () => {
       if (!user) return;
 
-      const { data, error } = await supabase
-        .rpc('get_user_purchased_packs');
+      // Get purchased pack IDs
+      const { data: purchaseData } = await supabase
+        .from('purchases')
+        .select('prompt_pack_id')
+        .eq('user_id', user.id);
 
-      if (data && !error) {
-        setCollectedPacks(data);
-      }
+      if (!purchaseData) return;
+
+      // Fetch pack details
+      const { data: promptData } = await supabase
+        .from('prompt_packs')
+        .select(`
+          *,
+          favorites:favorites(count)
+        `)
+        .in('id', purchaseData.map(p => p.prompt_pack_id));
+
+      if (!promptData) return;
+
+      // Get creator information
+      const creatorIds = Array.from(new Set(promptData.map(pack => pack.creator_id)));
+      const { data: creatorData } = await supabase
+        .from('users')
+        .select('id, full_name, username, avatar_url')
+        .in('id', creatorIds);
+
+      // Create a map of creator profiles
+      const creatorMap = new Map(
+        creatorData?.map(creator => [creator.id, creator]) || []
+      );
+
+      const transformedData = promptData.map(pack => {
+        const creator = creatorMap.get(pack.creator_id);
+        return {
+          id: pack.id,
+          title: pack.title,
+          preview_images: Array.isArray(pack.preview_images)
+            ? pack.preview_images.filter((url: string) => typeof url === 'string' && url.trim() !== '')
+            : [],
+          category: pack.category || 'Uncategorized',
+          price: pack.price || 0,
+          favorite_count: pack.favorites?.[0]?.count || 0,
+          creator_id: pack.creator_id,
+          creator_name: creator?.full_name || creator?.username || 'Anonymous',
+          creator_avatar: creator?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${creator?.full_name || creator?.username || 'anonymous'}`,
+          created_at: pack.created_at
+        };
+      });
+
+      setCollectedPacks(transformedData);
     };
 
     const fetchLikedPacks = async () => {
       if (!user) return;
 
-      // First get the liked pack IDs
-      const { data: likedIds, error: likedError } = await supabase
+      // Get liked pack IDs
+      const { data: likedIds } = await supabase
         .from('favorites')
         .select('prompt_pack_id')
         .eq('user_id', user.id);
 
-      if (likedError || !likedIds) return;
+      if (!likedIds) return;
 
-      // Then fetch the pack details
-      const { data, error } = await supabase
-        .from('prompt_pack_details')
-        .select('*')
+      // Fetch pack details
+      const { data: promptData } = await supabase
+        .from('prompt_packs')
+        .select(`
+          *,
+          favorites:favorites(count)
+        `)
         .in('id', likedIds.map(row => row.prompt_pack_id));
 
-      if (data && !error) {
-        setLikedPacks(data);
-      }
+      if (!promptData) return;
+
+      // Get creator information
+      const creatorIds = Array.from(new Set(promptData.map(pack => pack.creator_id)));
+      const { data: creatorData } = await supabase
+        .from('users')
+        .select('id, full_name, username, avatar_url')
+        .in('id', creatorIds);
+
+      // Create a map of creator profiles
+      const creatorMap = new Map(
+        creatorData?.map(creator => [creator.id, creator]) || []
+      );
+
+      const transformedData = promptData.map(pack => {
+        const creator = creatorMap.get(pack.creator_id);
+        return {
+          id: pack.id,
+          title: pack.title,
+          preview_images: Array.isArray(pack.preview_images)
+            ? pack.preview_images.filter((url: string) => typeof url === 'string' && url.trim() !== '')
+            : [],
+          category: pack.category || 'Uncategorized',
+          price: pack.price || 0,
+          favorite_count: pack.favorites?.[0]?.count || 0,
+          creator_id: pack.creator_id,
+          creator_name: creator?.full_name || creator?.username || 'Anonymous',
+          creator_avatar: creator?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${creator?.full_name || creator?.username || 'anonymous'}`,
+          created_at: pack.created_at
+        };
+      });
+
+      setLikedPacks(transformedData);
     };
 
     fetchMyPacks();
@@ -298,7 +405,7 @@ const Profile = () => {
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
             <Avatar
-              src={pack.creator_avatar_url || undefined}
+              src={pack.creator_avatar}
               alt={pack.creator_name}
               sx={{ width: 24, height: 24, mr: 1 }}
             />
