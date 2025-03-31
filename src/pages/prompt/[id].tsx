@@ -17,6 +17,7 @@ import {
   Avatar,
   IconButton,
   Skeleton,
+  CircularProgress,
 } from '@mui/material';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
@@ -52,6 +53,7 @@ export default function PromptPackDetailPage() {
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteCount, setFavoriteCount] = useState(0);
   const [relatedPacks, setRelatedPacks] = useState<PromptPack[]>([]);
+  const [isPurchasing, setIsPurchasing] = useState(false);
   const navigate = useNavigate();
 
   const formatDate = (dateString: string) => {
@@ -221,8 +223,47 @@ export default function PromptPackDetailPage() {
   };
 
   const handlePurchase = async () => {
-    // This will be implemented later with Stripe
-    console.log('Purchase functionality to be implemented');
+    if (!user) {
+      navigate('/auth?mode=signin');
+      return;
+    }
+
+    if (!promptPack) return;
+
+    try {
+      setIsPurchasing(true);
+
+      if (hasPurchased) {
+        // Delete the purchase
+        const { error: deleteError } = await supabase
+          .from('purchases')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('prompt_pack_id', promptPack.id);
+
+        if (deleteError) throw deleteError;
+        setHasPurchased(false);
+      } else {
+        // Create a new purchase
+        const { error: purchaseError } = await supabase
+          .from('purchases')
+          .insert({
+            user_id: user.id,
+            prompt_pack_id: promptPack.id,
+            amount: promptPack.price
+          });
+
+        if (purchaseError) throw purchaseError;
+        setHasPurchased(true);
+      }
+    } catch (error) {
+      console.error('Error handling purchase:', error);
+    } finally {
+      // Add a small delay to show the loading state
+      setTimeout(() => {
+        setIsPurchasing(false);
+      }, 2000);
+    }
   };
 
   if (isLoading) {
@@ -390,16 +431,20 @@ export default function PromptPackDetailPage() {
               size="large"
               fullWidth
               onClick={handlePurchase}
-              disabled={hasPurchased}
+              disabled={isPurchasing}
               sx={{ 
-                bgcolor: 'rgb(37, 99, 235)',
+                bgcolor: hasPurchased ? 'rgb(22, 163, 74)' : 'rgb(37, 99, 235)',
                 '&:hover': {
-                  bgcolor: 'rgb(29, 78, 216)'
+                  bgcolor: hasPurchased ? 'rgb(21, 128, 61)' : 'rgb(29, 78, 216)'
                 },
                 mb: 3
               }}
             >
-              {hasPurchased ? 'Purchased' : 'Purchase Now'}
+              {isPurchasing ? (
+                <CircularProgress size={24} sx={{ color: 'white' }} />
+              ) : (
+                hasPurchased ? 'Purchased' : 'Purchase Now'
+              )}
             </Button>
 
             {/* Creator Info */}
