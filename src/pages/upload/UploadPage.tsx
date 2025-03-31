@@ -54,13 +54,6 @@ export default function UploadPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Redirect if not a creator
-  React.useEffect(() => {
-    if (user && user.user_metadata.type !== 'creator') {
-      navigate('/');
-    }
-  }, [user, navigate]);
-
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (images.length + acceptedFiles.length > 9) {
       setError('Maximum 9 images allowed');
