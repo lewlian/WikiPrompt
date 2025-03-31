@@ -13,11 +13,14 @@ import {
 import { Search as SearchIcon, Close as CloseIcon } from '@mui/icons-material';
 import Sidebar from '../components/Sidebar';
 import PromptGrid from '../components/PromptGrid';
+import WelcomeBanner from '../components/WelcomeBanner';
+import { useAuth } from '../contexts/AuthContext';
 
 // Categories list (moved from sidebar)
 const categories = ['Writing', 'Programming', 'Art & Design', 'Business', 'Education', 'Entertainment', 'Productivity', 'AI', 'Data Science', 'Marketing', 'Gaming', 'Web3', 'Mobile', 'OpenSource', 'Node', 'React', 'Solidity', 'Smart Contract', 'Zero Knowledge'];
 
 const Dashboard: React.FC = () => {
+  const { user } = useAuth();
   // State for filters
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedAiModel, setSelectedAiModel] = useState<string>('All');
@@ -45,6 +48,9 @@ const Dashboard: React.FC = () => {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: '#0A1929' }}>
+      {/* Show WelcomeBanner only for non-logged-in users */}
+      {!user && <WelcomeBanner />}
+      
       <Container maxWidth={false} sx={{ flexGrow: 1, py: 4, px: { xs: 2, sm: 3, md: 4, lg: 5 } }}>
         <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
           {/* Sidebar */}

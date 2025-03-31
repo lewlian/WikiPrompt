@@ -1,9 +1,11 @@
-import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from './test-utils';
 import App from './App';
 
-test('renders learn react link', () => {
-  render(<App />);
-  const linkElement = screen.getByText(/learn react/i);
-  expect(linkElement).toBeInTheDocument();
+describe('App', () => {
+  it('renders without crashing', async () => {
+    await act(async () => {
+      render(<App />, { withoutRouter: true });
+    });
+    expect(screen.getByText(/WikiPrompt/i)).toBeInTheDocument();
+  });
 });

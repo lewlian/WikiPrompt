@@ -508,6 +508,7 @@ const PromptGrid: React.FC<PromptGridProps> = ({
           <Skeleton 
             key={key} 
             variant="rectangular" 
+            data-testid="loading-skeleton"
             sx={{ 
               height: 400,
               borderRadius: 2,
