@@ -52,19 +52,13 @@ const Header = () => {
             <ProfileMenu />
           </>
         ) : (
-          <>
-            <Button 
-              variant="contained" 
-              color="primary"
-              onClick={() => handleAuthClick('signup')}
-              sx={{ mr: 2 }}
-            >
-              Become a Creator
-            </Button>
-            <Button onClick={() => handleAuthClick('signin')}>
-              Sign In
-            </Button>
-          </>
+          <Button 
+            variant="contained" 
+            color="primary"
+            onClick={() => handleAuthClick('signin')}
+          >
+            Sign In / Sign Up
+          </Button>
         )}
       </Toolbar>
     </AppBar>
