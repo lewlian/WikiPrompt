@@ -301,26 +301,28 @@ interface FavoriteCount {
 }
 
 interface PromptGridProps {
-  category: string;
+  categories: string[];
   aiModel: string;
   priceRange: number[];
   sortBy: string;
+  searchQuery: string;
 }
 
 const PromptGrid: React.FC<PromptGridProps> = ({
-  category,
+  categories,
   aiModel,
   priceRange,
   sortBy,
+  searchQuery,
 }) => {
-  const [prompts, setPrompts] = useState<PromptPackDetails[]>([]);
-  const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
   const { user } = useAuth();
+  const [promptPacks, setPromptPacks] = useState<PromptPackDetails[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
 
   const fetchPrompts = async () => {
+    setIsLoading(true);
     try {
-      setLoading(true);
       let query = supabase
         .from('prompt_packs')
         .select(`
@@ -328,84 +330,53 @@ const PromptGrid: React.FC<PromptGridProps> = ({
           favorites:favorites(count)
         `);
 
-      // Apply filters
-      if (category !== 'All') {
-        query = query.eq('category', category);
+      // Apply category filter if needed (skip if "All" is selected)
+      if (categories.length > 0 && !categories.includes('All')) {
+        query = query.in('category', categories);
       }
+
+      // Apply AI model filter if not "All"
       if (aiModel !== 'All') {
         query = query.eq('ai_model', aiModel);
       }
-      query = query.gte('price', priceRange[0]).lte('price', priceRange[1]);
+
+      // Apply price range filter
+      if (priceRange[0] > 0 || priceRange[1] < 100) {
+        query = query
+          .gte('price', priceRange[0])
+          .lte('price', priceRange[1]);
+      }
+
+      // Apply search filter if provided
+      if (searchQuery) {
+        query = query.ilike('title', `%${searchQuery}%`);
+      }
 
       // Apply sorting
       switch (sortBy) {
-        case 'newest':
-          query = query.order('created_at', { ascending: false });
-          break;
         case 'popular':
-          // Get all prompt packs
-          const { data: allPacks, error: packsError } = await query;
-
-          if (packsError) {
-            console.error('Error fetching packs:', packsError);
-            throw packsError;
-          }
-
-          // Get all favorites counts
-          const { data: favoritesData, error: favoritesError } = await supabase
-            .from('favorites')
-            .select('prompt_pack_id');
-
-          if (favoritesError) {
-            console.error('Error fetching favorites:', favoritesError);
-            throw favoritesError;
-          }
-
-          // Count favorites for each prompt pack
-          const favoritesCount = favoritesData?.reduce((acc: { [key: string]: number }, fav) => {
-            acc[fav.prompt_pack_id] = (acc[fav.prompt_pack_id] || 0) + 1;
-            return acc;
-          }, {});
-
-          // Get user's favorites if logged in
-          let userFavorites: string[] = [];
-          if (user) {
-            const { data: userFavData } = await supabase
-              .from('favorites')
-              .select('prompt_pack_id')
-              .eq('user_id', user.id);
-            
-            userFavorites = userFavData?.map(f => f.prompt_pack_id) || [];
-          }
-
-          // Process and sort the data
-          const processedData = allPacks?.map(pack => ({
-            ...pack,
-            favorite_count: favoritesCount?.[pack.id] || 0,
-            is_favorited: userFavorites.includes(pack.id)
-          })) || [];
-
-          // Sort by favorite count in descending order
-          processedData.sort((a, b) => b.favorite_count - a.favorite_count);
-
-          setPrompts(processedData);
-          setLoading(false);
-          return; // Exit early since we've already set the data
-
-        case 'trending':
-          query = query.order('views', { ascending: false });
+          // Sort by favorites count
+          query = query.order('favorites', { ascending: false, foreignTable: 'favorites' });
           break;
-        default:
+        case 'trending':
+          // Sort by a combination of recency and popularity
           query = query.order('created_at', { ascending: false });
+          break;
+        case 'newest':
+        default:
+          // Sort by creation date
+          query = query.order('created_at', { ascending: false });
+          break;
       }
 
-      const { data, error } = await query;
+      const { data: promptData, error: promptError } = await query;
 
-      if (error) {
-        throw error;
+      if (promptError) {
+        console.error('Error fetching prompts:', promptError);
+        return;
       }
 
-      // If user is logged in, get their favorites
+      // Get user's favorites if logged in
       let userFavorites: string[] = [];
       if (user) {
         const { data: favoritesData } = await supabase
@@ -416,26 +387,58 @@ const PromptGrid: React.FC<PromptGridProps> = ({
         userFavorites = favoritesData?.map(f => f.prompt_pack_id) || [];
       }
 
-      // Process the data to include favorite count and status
-      const processedData = data?.map(pack => ({
-        ...pack,
-        favorite_count: pack.favorites?.[0]?.count || 0,
-        is_favorited: userFavorites.includes(pack.id)
-      })) || [];
+      // Get creator profiles in a separate query
+      const creatorIds = Array.from(new Set((promptData || []).map(pack => pack.creator_id)));
+      const { data: creatorData } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url')
+        .in('id', creatorIds);
 
-      setPrompts(processedData);
+      // Create a map of creator profiles
+      const creatorMap = new Map(
+        creatorData?.map(creator => [creator.id, creator]) || []
+      );
+
+      // Transform data to match PromptPackDetails interface
+      const transformedData: PromptPackDetails[] = (promptData || []).map((pack: any) => {
+        const creator = creatorMap.get(pack.creator_id);
+        // Ensure we have valid preview images
+        const validPreviewImages = Array.isArray(pack.preview_images)
+          ? pack.preview_images.filter((url: string) => url && typeof url === 'string' && url.trim() !== '')
+          : [];
+
+        return {
+          id: pack.id,
+          title: pack.title,
+          prompt: pack.prompt,
+          full_prompt: pack.full_prompt,
+          ai_model: pack.ai_model,
+          category: pack.category,
+          price: pack.price || 0,
+          preview_images: validPreviewImages,
+          creator_name: creator?.display_name || 'Anonymous',
+          creator_avatar: creator?.avatar_url || 
+            `https://api.dicebear.com/7.x/avataaars/svg?seed=${creator?.display_name || 'anonymous'}`,
+          created_at: pack.created_at,
+          updated_at: pack.updated_at,
+          favorite_count: pack.favorites?.[0]?.count || 0,
+          is_favorited: userFavorites.includes(pack.id),
+        };
+      });
+
+      setPromptPacks(transformedData);
     } catch (error) {
-      console.error('Error fetching prompts:', error);
+      console.error('Error in fetchPrompts:', error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
     fetchPrompts();
-  }, [category, aiModel, priceRange, sortBy, user]);
+  }, [categories, aiModel, priceRange, sortBy, searchQuery, user]);
 
-  if (loading) {
+  if (isLoading) {
     return (
       <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', p: 3 }}>
         {[1, 2, 3, 4].map((key) => (
@@ -466,7 +469,7 @@ const PromptGrid: React.FC<PromptGridProps> = ({
         p: 3,
       }}
     >
-      {prompts.map((prompt) => (
+      {promptPacks.map((prompt) => (
         <Box 
           key={prompt.id}
           sx={{ 
