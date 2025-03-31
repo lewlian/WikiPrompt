@@ -23,7 +23,7 @@ import {
   Alert,
   CircularProgress,
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import FavoriteIcon from '@mui/icons-material/Favorite';
@@ -32,6 +32,8 @@ import SearchIcon from '@mui/icons-material/Search';
 import EditIcon from '@mui/icons-material/Edit';
 import { styled } from '@mui/material/styles';
 import { useUserProfile } from '../hooks/useUserProfile';
+import ImageList from '@mui/material/ImageList';
+import ImageListItem from '@mui/material/ImageListItem';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -69,11 +71,19 @@ interface PromptPack {
   category: string;
   price: number;
   favorite_count: number;
-  creator_id: string;
   creator_name: string;
-  creator_avatar: string;
+  creator_avatar_url: string | null;
   created_at: string;
 }
+
+const FALLBACK_IMAGE = 'https://placehold.co/400x400/e0e0e0/9e9e9e?text=No+Preview';
+
+// Helper function to determine grid columns based on number of images
+const getGridCols = (imageCount: number): number => {
+  if (imageCount <= 1) return 1;
+  if (imageCount === 2) return 2;
+  return 2;
+};
 
 const Profile = () => {
   const [tabValue, setTabValue] = useState(0);
@@ -94,152 +104,47 @@ const Profile = () => {
     const fetchMyPacks = async () => {
       if (!user) return;
 
-      const { data: promptData, error: promptError } = await supabase
-        .from('prompt_packs')
-        .select(`
-          *,
-          favorites:favorites(count)
-        `)
+      const { data, error } = await supabase
+        .from('prompt_pack_details')
+        .select('*')
         .eq('creator_id', user.id);
 
-      if (promptError) {
-        console.error('Error fetching my packs:', promptError);
-        return;
+      if (data && !error) {
+        setMyPacks(data);
       }
-
-      // Get creator information
-      const { data: creatorData } = await supabase
-        .from('users')
-        .select('id, full_name, username, avatar_url')
-        .eq('id', user.id)
-        .single();
-
-      const transformedData = (promptData || []).map((pack: any) => ({
-        id: pack.id,
-        title: pack.title,
-        preview_images: Array.isArray(pack.preview_images)
-          ? pack.preview_images.filter((url: string) => typeof url === 'string' && url.trim() !== '')
-          : [],
-        category: pack.category || 'Uncategorized',
-        price: pack.price || 0,
-        favorite_count: pack.favorites?.[0]?.count || 0,
-        creator_id: pack.creator_id,
-        creator_name: creatorData?.full_name || creatorData?.username || 'Anonymous',
-        creator_avatar: creatorData?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${creatorData?.full_name || creatorData?.username || 'anonymous'}`,
-        created_at: pack.created_at
-      }));
-
-      setMyPacks(transformedData);
     };
 
     const fetchCollectedPacks = async () => {
       if (!user) return;
 
-      // Get purchased pack IDs
-      const { data: purchaseData } = await supabase
-        .from('purchases')
-        .select('prompt_pack_id')
-        .eq('user_id', user.id);
+      const { data, error } = await supabase
+        .rpc('get_user_purchased_packs');
 
-      if (!purchaseData) return;
-
-      // Fetch pack details
-      const { data: promptData } = await supabase
-        .from('prompt_packs')
-        .select(`
-          *,
-          favorites:favorites(count)
-        `)
-        .in('id', purchaseData.map(p => p.prompt_pack_id));
-
-      if (!promptData) return;
-
-      // Get creator information
-      const creatorIds = Array.from(new Set(promptData.map(pack => pack.creator_id)));
-      const { data: creatorData } = await supabase
-        .from('users')
-        .select('id, full_name, username, avatar_url')
-        .in('id', creatorIds);
-
-      // Create a map of creator profiles
-      const creatorMap = new Map(
-        creatorData?.map(creator => [creator.id, creator]) || []
-      );
-
-      const transformedData = promptData.map(pack => {
-        const creator = creatorMap.get(pack.creator_id);
-        return {
-          id: pack.id,
-          title: pack.title,
-          preview_images: Array.isArray(pack.preview_images)
-            ? pack.preview_images.filter((url: string) => typeof url === 'string' && url.trim() !== '')
-            : [],
-          category: pack.category || 'Uncategorized',
-          price: pack.price || 0,
-          favorite_count: pack.favorites?.[0]?.count || 0,
-          creator_id: pack.creator_id,
-          creator_name: creator?.full_name || creator?.username || 'Anonymous',
-          creator_avatar: creator?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${creator?.full_name || creator?.username || 'anonymous'}`,
-          created_at: pack.created_at
-        };
-      });
-
-      setCollectedPacks(transformedData);
+      if (data && !error) {
+        setCollectedPacks(data);
+      }
     };
 
     const fetchLikedPacks = async () => {
       if (!user) return;
 
-      // Get liked pack IDs
-      const { data: likedIds } = await supabase
+      // First get the liked pack IDs
+      const { data: likedIds, error: likedError } = await supabase
         .from('favorites')
         .select('prompt_pack_id')
         .eq('user_id', user.id);
 
-      if (!likedIds) return;
+      if (likedError || !likedIds) return;
 
-      // Fetch pack details
-      const { data: promptData } = await supabase
-        .from('prompt_packs')
-        .select(`
-          *,
-          favorites:favorites(count)
-        `)
+      // Then fetch the pack details
+      const { data, error } = await supabase
+        .from('prompt_pack_details')
+        .select('*')
         .in('id', likedIds.map(row => row.prompt_pack_id));
 
-      if (!promptData) return;
-
-      // Get creator information
-      const creatorIds = Array.from(new Set(promptData.map(pack => pack.creator_id)));
-      const { data: creatorData } = await supabase
-        .from('users')
-        .select('id, full_name, username, avatar_url')
-        .in('id', creatorIds);
-
-      // Create a map of creator profiles
-      const creatorMap = new Map(
-        creatorData?.map(creator => [creator.id, creator]) || []
-      );
-
-      const transformedData = promptData.map(pack => {
-        const creator = creatorMap.get(pack.creator_id);
-        return {
-          id: pack.id,
-          title: pack.title,
-          preview_images: Array.isArray(pack.preview_images)
-            ? pack.preview_images.filter((url: string) => typeof url === 'string' && url.trim() !== '')
-            : [],
-          category: pack.category || 'Uncategorized',
-          price: pack.price || 0,
-          favorite_count: pack.favorites?.[0]?.count || 0,
-          creator_id: pack.creator_id,
-          creator_name: creator?.full_name || creator?.username || 'Anonymous',
-          creator_avatar: creator?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${creator?.full_name || creator?.username || 'anonymous'}`,
-          created_at: pack.created_at
-        };
-      });
-
-      setLikedPacks(transformedData);
+      if (data && !error) {
+        setLikedPacks(data);
+      }
     };
 
     fetchMyPacks();
@@ -372,70 +277,211 @@ const Profile = () => {
     setAvatarPreview(null);
   };
 
-  const renderPromptCard = (pack: PromptPack) => (
-    <Box 
-      key={pack.id} 
-      sx={{ 
-        width: { 
-          xs: '100%', 
-          sm: '50%', 
-          md: '33.333%' 
-        }, 
-        p: 1 
-      }}
-    >
+  const renderPromptCard = (pack: PromptPack) => {
+    // Get preview images or use fallback
+    const previewImages = Array.isArray(pack.preview_images) && pack.preview_images.length > 0
+      ? pack.preview_images.filter(url => typeof url === 'string' && url.trim() !== '')
+      : [FALLBACK_IMAGE];
+
+    // Get at most 4 images for the collage
+    const displayImages = previewImages.slice(0, 4);
+    const cols = getGridCols(displayImages.length);
+
+    return (
       <Card 
+        onClick={() => navigate(`/prompt/${pack.id}`)}
         sx={{ 
-          height: '100%', 
           display: 'flex', 
           flexDirection: 'column',
-          cursor: 'pointer'
+          height: '100%',
+          '&:hover': {
+            cursor: 'pointer',
+            boxShadow: 6,
+            transform: 'translateY(-4px)',
+            transition: 'all 0.2s ease-in-out',
+          },
         }}
-        onClick={() => navigate(`/prompt/${pack.id}`)}
       >
-        <CardMedia
-          component="img"
-          height="200"
-          image={pack.preview_images[0] || 'https://placehold.co/400x400/e0e0e0/9e9e9e?text=No+Preview'}
-          alt={pack.title}
-        />
-        <CardContent sx={{ flexGrow: 1 }}>
-          <Typography gutterBottom variant="h6" component="div">
-            {pack.title}
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-            <Avatar
-              src={pack.creator_avatar}
-              alt={pack.creator_name}
-              sx={{ width: 24, height: 24, mr: 1 }}
+        <Box sx={{ position: 'relative', height: 200, overflow: 'hidden' }}>
+          <ImageList 
+            sx={{ 
+              width: '100%', 
+              height: '100%', 
+              m: 0,
+              overflow: 'hidden',
+              '& .MuiImageListItem-root': {
+                padding: 0,
+                overflow: 'hidden',
+              },
+            }} 
+            cols={cols} 
+            rowHeight={displayImages.length > 2 ? 100 : 200}
+            gap={2}
+          >
+            {displayImages.map((image, index) => (
+              <ImageListItem 
+                key={index}
+                sx={{ overflow: 'hidden' }}
+              >
+                <img
+                  src={image}
+                  alt={`${pack.title} preview ${index + 1}`}
+                  loading="lazy"
+                  style={{ 
+                    height: '100%',
+                    width: '100%',
+                    objectFit: 'cover',
+                    display: 'block',
+                  }}
+                  onError={(e) => {
+                    console.error('Image failed to load:', image);
+                    const target = e.target as HTMLImageElement;
+                    if (target.src !== FALLBACK_IMAGE) {
+                      target.src = FALLBACK_IMAGE;
+                    }
+                  }}
+                />
+              </ImageListItem>
+            ))}
+          </ImageList>
+          {previewImages.length > 4 && (
+            <Box
+              sx={{
+                position: 'absolute',
+                bottom: 8,
+                right: 8,
+                bgcolor: 'rgba(0, 0, 0, 0.5)',
+                color: 'white',
+                px: 1,
+                borderRadius: 1,
+                fontSize: '0.875rem',
+              }}
+            >
+              +{previewImages.length - 4}
+            </Box>
+          )}
+        </Box>
+        <CardContent sx={{ 
+          flexGrow: 1, 
+          display: 'flex', 
+          flexDirection: 'column',
+          p: 2,
+          '&:last-child': { pb: 2 },
+        }}>
+          <Box sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <Typography 
+              variant="h6" 
+              component="h2" 
+              sx={{
+                fontSize: '1rem',
+                fontWeight: 600,
+                lineHeight: 1.2,
+                maxWidth: 'calc(100% - 80px)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+              }}
+            >
+              {pack.title}
+            </Typography>
+            <Chip 
+              label={pack.category || 'General'} 
+              size="small" 
+              sx={{ 
+                bgcolor: 'primary.main',
+                color: 'white',
+                fontWeight: 500,
+                flexShrink: 0,
+              }} 
             />
-            <Typography variant="body2" color="text.secondary">
-              {pack.creator_name}
+          </Box>
+          
+          <Box sx={{ 
+            mt: 1,
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 1,
+            pt: 1,
+            borderTop: '1px solid',
+            borderColor: 'divider',
+            justifyContent: 'space-between',
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Avatar 
+                src={pack.creator_avatar_url || undefined} 
+                sx={{ width: 24, height: 24 }}
+              />
+              <Typography 
+                variant="body2" 
+                color="text.secondary"
+                sx={{
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {pack.creator_name}
+              </Typography>
+            </Box>
+            <Typography 
+              variant="body2" 
+              color="text.secondary"
+              sx={{
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {new Date(pack.created_at).toLocaleDateString('en-GB', { 
+                day: '2-digit', 
+                month: '2-digit', 
+                year: 'numeric' 
+              })}
             </Typography>
           </Box>
-          <Chip 
-            label={pack.category} 
-            size="small" 
-            sx={{ mr: 1 }}
-          />
-          <Chip 
-            label={`$${pack.price.toFixed(2)}`}
-            size="small"
-          />
+
+          <Box sx={{ 
+            mt: 2,
+            pt: 2,
+            borderTop: '1px solid',
+            borderColor: 'divider',
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <IconButton 
+                size="small" 
+                sx={{ color: 'text.secondary' }}
+              >
+                <FavoriteIcon fontSize="small" />
+              </IconButton>
+              <Typography 
+                variant="body2" 
+                color="text.secondary"
+                sx={{
+                  maxWidth: 120,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {pack.favorite_count}
+              </Typography>
+            </Box>
+            
+            <Typography 
+              variant="subtitle1" 
+              fontWeight="bold" 
+              color="primary"
+            >
+              {pack.price ? `$${pack.price.toFixed(2)}` : 'Free'}
+            </Typography>
+          </Box>
         </CardContent>
-        <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <IconButton size="small" sx={{ mr: 1 }}>
-              <FavoriteIcon fontSize="small" />
-            </IconButton>
-            <Typography variant="body2" color="text.secondary">
-              {pack.favorite_count}
-            </Typography>
-          </Box>
-        </CardActions>
       </Card>
-    </Box>
-  );
+    );
+  };
 
   const renderEmptyState = (type: 'upload' | 'browse') => (
     <Box 
@@ -591,25 +637,25 @@ const Profile = () => {
 
       <TabPanel value={tabValue} index={0}>
         {myPacks.length > 0 ? (
-          <Grid container spacing={3}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr', lg: '1fr 1fr 1fr 1fr' }, gap: 3 }}>
             {myPacks.map(renderPromptCard)}
-          </Grid>
+          </Box>
         ) : renderEmptyState('upload')}
       </TabPanel>
 
       <TabPanel value={tabValue} index={1}>
         {collectedPacks.length > 0 ? (
-          <Grid container spacing={3}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr', lg: '1fr 1fr 1fr 1fr' }, gap: 3 }}>
             {collectedPacks.map(renderPromptCard)}
-          </Grid>
+          </Box>
         ) : renderEmptyState('browse')}
       </TabPanel>
 
       <TabPanel value={tabValue} index={2}>
         {likedPacks.length > 0 ? (
-          <Grid container spacing={3}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr', lg: '1fr 1fr 1fr 1fr' }, gap: 3 }}>
             {likedPacks.map(renderPromptCard)}
-          </Grid>
+          </Box>
         ) : renderEmptyState('browse')}
       </TabPanel>
     </Container>
