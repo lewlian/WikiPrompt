@@ -356,10 +356,6 @@ const PromptGrid: React.FC<PromptGridProps> = ({
           // Sort by favorites count
           query = query.order('favorites', { ascending: false, foreignTable: 'favorites' });
           break;
-        case 'trending':
-          // Sort by a combination of recency and popularity
-          query = query.order('created_at', { ascending: false });
-          break;
         case 'newest':
         default:
           // Sort by creation date

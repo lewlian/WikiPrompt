@@ -66,6 +66,35 @@ const Sidebar: React.FC<SidebarProps> = ({
       </Typography>
 
       <Box sx={{ mb: 3 }}>
+        <FormControl fullWidth size="small">
+          <InputLabel sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>Sort By</InputLabel>
+          <Select
+            value={sortBy}
+            label="Sort By"
+            onChange={(e) => onSortByChange(e.target.value)}
+            sx={{
+              color: 'white',
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'rgba(255, 255, 255, 0.2)',
+              },
+              '&:hover .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'rgba(255, 255, 255, 0.3)',
+              },
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'primary.main',
+              },
+              '& .MuiSvgIcon-root': {
+                color: 'rgba(255, 255, 255, 0.7)',
+              }
+            }}
+          >
+            <MenuItem value="popular">Popular</MenuItem>
+            <MenuItem value="newest">Newest</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
+
+      <Box sx={{ mb: 3 }}>
         <Typography variant="subtitle1" sx={{ mb: 1 }}>
           AI Model
         </Typography>
@@ -187,36 +216,6 @@ const Sidebar: React.FC<SidebarProps> = ({
             }}
           />
         </Box>
-      </Box>
-
-      <Box sx={{ mb: 3 }}>
-        <FormControl fullWidth size="small">
-          <InputLabel sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>Sort By</InputLabel>
-          <Select
-            value={sortBy}
-            label="Sort By"
-            onChange={(e) => onSortByChange(e.target.value)}
-            sx={{
-              color: 'white',
-              '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'rgba(255, 255, 255, 0.2)',
-              },
-              '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'rgba(255, 255, 255, 0.3)',
-              },
-              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'primary.main',
-              },
-              '& .MuiSvgIcon-root': {
-                color: 'rgba(255, 255, 255, 0.7)',
-              }
-            }}
-          >
-            <MenuItem value="trending">Trending</MenuItem>
-            <MenuItem value="popular">Popular</MenuItem>
-            <MenuItem value="newest">Newest</MenuItem>
-          </Select>
-        </FormControl>
       </Box>
     </Paper>
   );
