@@ -28,6 +28,11 @@ interface PromptPackDetails {
   category?: string;
   price: number;
   preview_images: string[];
+  creator?: {
+    full_name: string | null;
+    username: string | null;
+    avatar_url: string | null;
+  };
   creator_name?: string;
   creator_avatar?: string;
   created_at: string;
@@ -325,7 +330,12 @@ const PromptGrid: React.FC<PromptGridProps> = ({
         .from('prompt_packs')
         .select(`
           *,
-          favorites:favorites(count)
+          favorites:favorites(count),
+          creator:users!creator_id(
+            full_name,
+            username,
+            avatar_url
+          )
         `);
 
       // Apply category filter if needed (skip if "All" is selected)
@@ -381,21 +391,8 @@ const PromptGrid: React.FC<PromptGridProps> = ({
         userFavorites = favoritesData?.map(f => f.prompt_pack_id) || [];
       }
 
-      // Get creator profiles in a separate query
-      const creatorIds = Array.from(new Set((promptData || []).map(pack => pack.creator_id)));
-      const { data: creatorData } = await supabase
-        .from('profiles')
-        .select('id, display_name, avatar_url')
-        .in('id', creatorIds);
-
-      // Create a map of creator profiles
-      const creatorMap = new Map(
-        creatorData?.map(creator => [creator.id, creator]) || []
-      );
-
       // Transform data to match PromptPackDetails interface
       const transformedData: PromptPackDetails[] = (promptData || []).map((pack: any) => {
-        const creator = creatorMap.get(pack.creator_id);
         // Ensure we have valid preview images
         const validPreviewImages = Array.isArray(pack.preview_images)
           ? pack.preview_images.filter((url: string) => url && typeof url === 'string' && url.trim() !== '')
@@ -410,9 +407,10 @@ const PromptGrid: React.FC<PromptGridProps> = ({
           category: pack.category,
           price: pack.price || 0,
           preview_images: validPreviewImages,
-          creator_name: creator?.display_name || 'Anonymous',
-          creator_avatar: creator?.avatar_url || 
-            `https://api.dicebear.com/7.x/avataaars/svg?seed=${creator?.display_name || 'anonymous'}`,
+          creator: pack.creator,
+          creator_name: pack.creator?.full_name || pack.creator?.username || 'Unknown User',
+          creator_avatar: pack.creator?.avatar_url || 
+            `https://api.dicebear.com/7.x/avataaars/svg?seed=${pack.creator?.username || 'unknown'}`,
           created_at: pack.created_at,
           updated_at: pack.updated_at,
           favorite_count: pack.favorites?.[0]?.count || 0,

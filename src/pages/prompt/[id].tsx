@@ -26,9 +26,10 @@ import LockOpenIcon from '@mui/icons-material/LockOpen';
 import PromptPackManager from '../../components/PromptPackManager';
 
 type PromptPack = Database['public']['Tables']['prompt_packs']['Row'] & {
-  creator_profiles?: {
-    display_name: string;
+  creator?: {
+    full_name: string;
     avatar_url: string | null;
+    username: string | null;
   };
   creator_name?: string;
   creator_avatar?: string;
@@ -70,7 +71,12 @@ export default function PromptPackDetailPage() {
           .from('prompt_packs')
           .select(`
             *,
-            favorites:favorites(count)
+            favorites:favorites(count),
+            creator:users!creator_id(
+              full_name,
+              avatar_url,
+              username
+            )
           `)
           .eq('id', id)
           .single();
@@ -97,13 +103,6 @@ export default function PromptPackDetailPage() {
           isFavoritedByUser = !!favoriteData;
         }
 
-        // Get creator information
-        const { data: creatorData, error: creatorError } = await supabase
-          .from('creator_profiles')
-          .select('display_name, avatar_url')
-          .eq('id', packData.creator_id)
-          .single();
-
         // Filter out any invalid URLs from preview_images
         const validPreviewImages = Array.isArray(packData.preview_images)
           ? packData.preview_images.filter((url: string) => typeof url === 'string' && url.trim() !== '')
@@ -113,8 +112,8 @@ export default function PromptPackDetailPage() {
         const validPackData: PromptPack = {
           ...packData,
           preview_images: validPreviewImages,
-          creator_name: creatorData?.display_name || 'Anonymous',
-          creator_avatar: creatorData?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${creatorData?.display_name || 'anonymous'}`,
+          creator_name: packData.creator?.full_name || packData.creator?.username || 'Unknown User',
+          creator_avatar: packData.creator?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${packData.creator?.username || 'unknown'}`,
           category: packData.category || 'Uncategorized',
           price: packData.price || 0,
         };
@@ -136,7 +135,12 @@ export default function PromptPackDetailPage() {
             .from('prompt_packs')
             .select(`
               *,
-              favorites:favorites(count)
+              favorites:favorites(count),
+              creator:users!creator_id(
+                full_name,
+                avatar_url,
+                username
+              )
             `)
             .eq('creator_id', packData.creator_id)
             .neq('id', id)
@@ -158,26 +162,18 @@ export default function PromptPackDetailPage() {
             userFavorites = favoritesData?.map(f => f.prompt_pack_id) || [];
           }
 
-          // Get creator info for related packs
-          const validRelatedData = await Promise.all((relatedPacksData || []).map(async (pack) => {
-            const { data: relatedCreatorData } = await supabase
-              .from('creator_profiles')
-              .select('display_name, avatar_url')
-              .eq('id', pack.creator_id)
-              .single();
-
-            return {
-              ...pack,
-              preview_images: Array.isArray(pack.preview_images) 
-                ? pack.preview_images.filter((url: string) => typeof url === 'string' && url.trim() !== '')
-                : [],
-              creator_name: relatedCreatorData?.display_name || 'Anonymous',
-              creator_avatar: relatedCreatorData?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${relatedCreatorData?.display_name || 'anonymous'}`,
-              category: pack.category || 'Uncategorized',
-              price: pack.price || 0,
-              favorite_count: pack.favorites?.[0]?.count || 0,
-              is_favorited: userFavorites.includes(pack.id)
-            };
+          // Transform related packs data
+          const validRelatedData = (relatedPacksData || []).map(pack => ({
+            ...pack,
+            preview_images: Array.isArray(pack.preview_images) 
+              ? pack.preview_images.filter((url: string) => typeof url === 'string' && url.trim() !== '')
+              : [],
+            creator_name: pack.creator?.full_name || pack.creator?.username || 'Unknown User',
+            creator_avatar: pack.creator?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${pack.creator?.username || 'unknown'}`,
+            category: pack.category || 'Uncategorized',
+            price: pack.price || 0,
+            favorite_count: pack.favorites?.[0]?.count || 0,
+            is_favorited: userFavorites.includes(pack.id)
           }));
 
           setRelatedPacks(validRelatedData);
