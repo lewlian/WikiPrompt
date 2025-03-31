@@ -11,8 +11,13 @@ import {
   Skeleton,
   ImageList,
   ImageListItem,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
 import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../contexts/AuthContext';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 
 interface PromptPackDetails {
   id: string;
@@ -27,6 +32,8 @@ interface PromptPackDetails {
   creator_avatar?: string;
   created_at: string;
   updated_at: string;
+  favorite_count: number;
+  is_favorited?: boolean;
 }
 
 // Update the fallback image to a more reliable source
@@ -38,6 +45,39 @@ interface PromptCardProps {
 }
 
 const PromptCard: React.FC<PromptCardProps> = ({ prompt, onClick }) => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [isFavorited, setIsFavorited] = useState(prompt.is_favorited || false);
+  const [favoriteCount, setFavoriteCount] = useState(prompt.favorite_count || 0);
+
+  const handleFavorite = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click when clicking favorite button
+    
+    if (!user) {
+      navigate('/auth?mode=signin');
+      return;
+    }
+
+    try {
+      if (isFavorited) {
+        await supabase
+          .from('favorites')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('prompt_pack_id', prompt.id);
+        setFavoriteCount(prev => prev - 1);
+      } else {
+        await supabase
+          .from('favorites')
+          .insert({ user_id: user.id, prompt_pack_id: prompt.id });
+        setFavoriteCount(prev => prev + 1);
+      }
+      setIsFavorited(!isFavorited);
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -198,11 +238,20 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, onClick }) => {
           alignItems: 'center',
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Avatar 
-              src={prompt.creator_avatar || FALLBACK_IMAGE} 
-              alt={prompt.creator_name}
-              sx={{ width: 24, height: 24 }}
-            />
+            <Tooltip title={isFavorited ? "Remove from favorites" : "Add to favorites"}>
+              <IconButton 
+                size="small" 
+                onClick={handleFavorite}
+                sx={{ 
+                  color: isFavorited ? 'error.main' : 'text.secondary',
+                  '&:hover': {
+                    color: isFavorited ? 'error.dark' : 'text.primary',
+                  }
+                }}
+              >
+                {isFavorited ? <FavoriteIcon /> : <FavoriteBorderIcon />}
+              </IconButton>
+            </Tooltip>
             <Typography 
               variant="body2" 
               color="text.secondary" 
@@ -213,7 +262,7 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, onClick }) => {
                 whiteSpace: 'nowrap',
               }}
             >
-              {prompt.creator_name || 'Anonymous'}
+              {favoriteCount}
             </Typography>
           </Box>
           
@@ -246,6 +295,11 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, onClick }) => {
   );
 };
 
+interface FavoriteCount {
+  prompt_pack_id: string;
+  count: number;
+}
+
 interface PromptGridProps {
   category: string;
   aiModel: string;
@@ -262,11 +316,17 @@ const PromptGrid: React.FC<PromptGridProps> = ({
   const [prompts, setPrompts] = useState<PromptPackDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const fetchPrompts = async () => {
     try {
       setLoading(true);
-      let query = supabase.from('prompt_packs').select('*');
+      let query = supabase
+        .from('prompt_packs')
+        .select(`
+          *,
+          favorites:favorites(count)
+        `);
 
       // Apply filters
       if (category !== 'All') {
@@ -283,8 +343,55 @@ const PromptGrid: React.FC<PromptGridProps> = ({
           query = query.order('created_at', { ascending: false });
           break;
         case 'popular':
-          query = query.order('downloads', { ascending: false });
-          break;
+          // Get all prompt packs
+          const { data: allPacks, error: packsError } = await query;
+
+          if (packsError) {
+            console.error('Error fetching packs:', packsError);
+            throw packsError;
+          }
+
+          // Get all favorites counts
+          const { data: favoritesData, error: favoritesError } = await supabase
+            .from('favorites')
+            .select('prompt_pack_id');
+
+          if (favoritesError) {
+            console.error('Error fetching favorites:', favoritesError);
+            throw favoritesError;
+          }
+
+          // Count favorites for each prompt pack
+          const favoritesCount = favoritesData?.reduce((acc: { [key: string]: number }, fav) => {
+            acc[fav.prompt_pack_id] = (acc[fav.prompt_pack_id] || 0) + 1;
+            return acc;
+          }, {});
+
+          // Get user's favorites if logged in
+          let userFavorites: string[] = [];
+          if (user) {
+            const { data: userFavData } = await supabase
+              .from('favorites')
+              .select('prompt_pack_id')
+              .eq('user_id', user.id);
+            
+            userFavorites = userFavData?.map(f => f.prompt_pack_id) || [];
+          }
+
+          // Process and sort the data
+          const processedData = allPacks?.map(pack => ({
+            ...pack,
+            favorite_count: favoritesCount?.[pack.id] || 0,
+            is_favorited: userFavorites.includes(pack.id)
+          })) || [];
+
+          // Sort by favorite count in descending order
+          processedData.sort((a, b) => b.favorite_count - a.favorite_count);
+
+          setPrompts(processedData);
+          setLoading(false);
+          return; // Exit early since we've already set the data
+
         case 'trending':
           query = query.order('views', { ascending: false });
           break;
@@ -298,14 +405,25 @@ const PromptGrid: React.FC<PromptGridProps> = ({
         throw error;
       }
 
-      // Debug log to check created_at field
-      console.log('Prompt packs with created_at:', data?.map(pack => ({
-        id: pack.id,
-        title: pack.title,
-        created_at: pack.created_at
-      })));
+      // If user is logged in, get their favorites
+      let userFavorites: string[] = [];
+      if (user) {
+        const { data: favoritesData } = await supabase
+          .from('favorites')
+          .select('prompt_pack_id')
+          .eq('user_id', user.id);
+        
+        userFavorites = favoritesData?.map(f => f.prompt_pack_id) || [];
+      }
 
-      setPrompts(data || []);
+      // Process the data to include favorite count and status
+      const processedData = data?.map(pack => ({
+        ...pack,
+        favorite_count: pack.favorites?.[0]?.count || 0,
+        is_favorited: userFavorites.includes(pack.id)
+      })) || [];
+
+      setPrompts(processedData);
     } catch (error) {
       console.error('Error fetching prompts:', error);
     } finally {
@@ -315,7 +433,7 @@ const PromptGrid: React.FC<PromptGridProps> = ({
 
   useEffect(() => {
     fetchPrompts();
-  }, [category, aiModel, priceRange, sortBy]);
+  }, [category, aiModel, priceRange, sortBy, user]);
 
   if (loading) {
     return (

@@ -50,6 +50,7 @@ export default function PromptPackDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [hasPurchased, setHasPurchased] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
+  const [favoriteCount, setFavoriteCount] = useState(0);
   const [relatedPacks, setRelatedPacks] = useState<PromptPack[]>([]);
   const navigate = useNavigate();
 
@@ -63,16 +64,16 @@ export default function PromptPackDetailPage() {
       if (!id) return;
 
       try {
-        console.log('Fetching prompt pack with ID:', id); // Debug log
+        console.log('Fetching prompt pack with ID:', id);
 
         const { data: packData, error: packError } = await supabase
           .from('prompt_packs')
-          .select('*')
+          .select(`
+            *,
+            favorites:favorites(count)
+          `)
           .eq('id', id)
           .single();
-
-        console.log('Raw pack data:', packData); // Debug log
-        console.log('Pack error:', packError); // Debug log
 
         if (packError) {
           throw packError;
@@ -83,6 +84,19 @@ export default function PromptPackDetailPage() {
           return;
         }
 
+        // Get favorite status if user is logged in
+        let isFavoritedByUser = false;
+        if (user) {
+          const { data: favoriteData } = await supabase
+            .from('favorites')
+            .select()
+            .eq('user_id', user.id)
+            .eq('prompt_pack_id', id)
+            .maybeSingle();
+          
+          isFavoritedByUser = !!favoriteData;
+        }
+
         // Get creator information
         const { data: creatorData, error: creatorError } = await supabase
           .from('creator_profiles')
@@ -90,15 +104,10 @@ export default function PromptPackDetailPage() {
           .eq('id', packData.creator_id)
           .single();
 
-        console.log('Creator data:', creatorData); // Debug log
-        console.log('Creator error:', creatorError); // Debug log
-
         // Filter out any invalid URLs from preview_images
         const validPreviewImages = Array.isArray(packData.preview_images)
           ? packData.preview_images.filter((url: string) => typeof url === 'string' && url.trim() !== '')
           : [];
-
-        console.log('Valid preview images:', validPreviewImages); // Debug log
 
         // Ensure all required fields are present
         const validPackData: PromptPack = {
@@ -110,38 +119,43 @@ export default function PromptPackDetailPage() {
           price: packData.price || 0,
         };
 
-        console.log('Processed pack data:', validPackData); // Debug log
         setPromptPack(validPackData);
+        setFavoriteCount(packData.favorites?.[0]?.count || 0);
+        setIsFavorited(isFavoritedByUser);
 
         // Check if user has purchased
         if (user) {
           const { data: purchaseData } = await supabase
             .rpc('has_user_purchased', { pack_id: id });
           setHasPurchased(!!purchaseData);
-
-          // Check if user has favorited
-          const { data: favoriteData } = await supabase
-            .rpc('has_user_favorited', { pack_id: id });
-          setIsFavorited(!!favoriteData);
         }
 
         // Fetch related packs by same creator
         if (packData) {
-          console.log('Fetching related packs for creator:', packData.creator_id); // Debug log
-
-          // Get related packs
           const { data: relatedPacksData, error: relatedError } = await supabase
             .from('prompt_packs')
-            .select('*')
+            .select(`
+              *,
+              favorites:favorites(count)
+            `)
             .eq('creator_id', packData.creator_id)
             .neq('id', id)
             .limit(3);
 
-          console.log('Related packs data:', relatedPacksData); // Debug log
-          console.log('Related packs error:', relatedError); // Debug log
-
           if (relatedError) {
             console.error('Error fetching related packs:', relatedError);
+          }
+
+          // Get user's favorites for related packs
+          let userFavorites: string[] = [];
+          if (user) {
+            const { data: favoritesData } = await supabase
+              .from('favorites')
+              .select('prompt_pack_id')
+              .eq('user_id', user.id)
+              .in('prompt_pack_id', relatedPacksData?.map(p => p.id) || []);
+            
+            userFavorites = favoritesData?.map(f => f.prompt_pack_id) || [];
           }
 
           // Get creator info for related packs
@@ -161,10 +175,11 @@ export default function PromptPackDetailPage() {
               creator_avatar: relatedCreatorData?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${relatedCreatorData?.display_name || 'anonymous'}`,
               category: pack.category || 'Uncategorized',
               price: pack.price || 0,
+              favorite_count: pack.favorites?.[0]?.count || 0,
+              is_favorited: userFavorites.includes(pack.id)
             };
           }));
 
-          console.log('Processed related packs:', validRelatedData); // Debug log
           setRelatedPacks(validRelatedData);
         }
       } catch (error) {
@@ -178,21 +193,31 @@ export default function PromptPackDetailPage() {
   }, [id, user]);
 
   const handleFavorite = async () => {
-    if (!user || !promptPack) return;
-
-    if (isFavorited) {
-      await supabase
-        .from('favorites')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('prompt_pack_id', promptPack.id);
-    } else {
-      await supabase
-        .from('favorites')
-        .insert({ user_id: user.id, prompt_pack_id: promptPack.id });
+    if (!user) {
+      navigate('/auth?mode=signin');
+      return;
     }
 
-    setIsFavorited(!isFavorited);
+    if (!promptPack) return;
+
+    try {
+      if (isFavorited) {
+        await supabase
+          .from('favorites')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('prompt_pack_id', promptPack.id);
+        setFavoriteCount(prev => prev - 1);
+      } else {
+        await supabase
+          .from('favorites')
+          .insert({ user_id: user.id, prompt_pack_id: promptPack.id });
+        setFavoriteCount(prev => prev + 1);
+      }
+      setIsFavorited(!isFavorited);
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+    }
   };
 
   const handlePurchase = async () => {
@@ -333,9 +358,14 @@ export default function PromptPackDetailPage() {
               <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
                 Uploaded on {formatDate(promptPack.created_at)}
               </Typography>
-              <IconButton onClick={handleFavorite} sx={{ color: 'white' }}>
-                {isFavorited ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
-              </IconButton>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <IconButton onClick={handleFavorite} sx={{ color: 'white' }}>
+                  {isFavorited ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
+                </IconButton>
+                <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                  {favoriteCount}
+                </Typography>
+              </Box>
               <PromptPackManager 
                 packId={promptPack.id} 
                 creatorId={promptPack.creator_id}
