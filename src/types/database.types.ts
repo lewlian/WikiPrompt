@@ -45,32 +45,6 @@ export interface Database {
           updated_at?: string;
         };
       };
-      creator_profiles: {
-        Row: {
-          id: string;
-          display_name: string;
-          bio: string | null;
-          avatar_url: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id: string;
-          display_name: string;
-          bio?: string | null;
-          avatar_url?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          display_name?: string;
-          bio?: string | null;
-          avatar_url?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-      };
     };
     Views: {
       [_ in never]: never;

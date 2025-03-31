@@ -28,17 +28,13 @@ interface PromptPackDetails {
   category?: string;
   price: number;
   preview_images: string[];
-  creator?: {
-    full_name: string | null;
-    username: string | null;
-    avatar_url: string | null;
-  };
   creator_name?: string;
   creator_avatar?: string;
   created_at: string;
   updated_at: string;
   favorite_count: number;
   is_favorited?: boolean;
+  has_purchased?: boolean;
 }
 
 // Update the fallback image to a more reliable source
@@ -215,6 +211,44 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, onClick }) => {
           />
         </Box>
         
+        <Box sx={{ 
+          mt: 1,
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 1,
+          pt: 1,
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          justifyContent: 'space-between',
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Avatar 
+              src={prompt.creator_avatar} 
+              sx={{ width: 24, height: 24 }}
+            />
+            <Typography 
+              variant="body2" 
+              color="text.secondary"
+              sx={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {prompt.creator_name}
+            </Typography>
+          </Box>
+          <Typography 
+            variant="body2" 
+            color="text.secondary"
+            sx={{
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {formatDate(prompt.created_at)}
+          </Typography>
+        </Box>
+
         <Typography 
           variant="body2" 
           color="text.secondary" 
@@ -228,7 +262,7 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, onClick }) => {
             minHeight: '2.5em',
           }}
         >
-          {prompt.prompt}
+          {prompt.has_purchased ? prompt.prompt : (prompt.price > 0 ? 'Purchase to unlock the full prompt' : 'Click to view the prompt')}
         </Typography>
 
         <Box sx={{ 
@@ -272,27 +306,11 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, onClick }) => {
           <Typography 
             variant="subtitle1" 
             fontWeight="bold" 
-            color="primary"
+            color={prompt.has_purchased ? 'success.main' : 'primary'}
           >
-            {prompt.price ? `$${prompt.price.toFixed(2)}` : 'Free'}
+            {prompt.has_purchased ? 'Collected' : (prompt.price ? `$${prompt.price.toFixed(2)}` : 'Free')}
           </Typography>
         </Box>
-
-        <Typography 
-          variant="body2" 
-          color="text.secondary" 
-          sx={{
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            mb: 'auto',
-            minHeight: '2.5em',
-          }}
-        >
-          {formatDate(prompt.created_at)}
-        </Typography>
       </CardContent>
     </Card>
   );
@@ -330,12 +348,7 @@ const PromptGrid: React.FC<PromptGridProps> = ({
         .from('prompt_packs')
         .select(`
           *,
-          favorites:favorites(count),
-          creator:users!creator_id(
-            full_name,
-            username,
-            avatar_url
-          )
+          favorites:favorites(count)
         `);
 
       // Apply category filter if needed (skip if "All" is selected)
@@ -391,8 +404,32 @@ const PromptGrid: React.FC<PromptGridProps> = ({
         userFavorites = favoritesData?.map(f => f.prompt_pack_id) || [];
       }
 
+      // Get user's purchased packs
+      let userPurchases: string[] = [];
+      if (user) {
+        const { data: purchasesData } = await supabase
+          .from('purchases')
+          .select('prompt_pack_id')
+          .eq('user_id', user.id);
+        
+        userPurchases = purchasesData?.map(p => p.prompt_pack_id) || [];
+      }
+
+      // Get creator profiles in a separate query
+      const creatorIds = Array.from(new Set((promptData || []).map(pack => pack.creator_id)));
+      const { data: creatorData } = await supabase
+        .from('users')
+        .select('id, full_name, username, avatar_url')
+        .in('id', creatorIds);
+
+      // Create a map of creator profiles
+      const creatorMap = new Map(
+        creatorData?.map(creator => [creator.id, creator]) || []
+      );
+
       // Transform data to match PromptPackDetails interface
       const transformedData: PromptPackDetails[] = (promptData || []).map((pack: any) => {
+        const creator = creatorMap.get(pack.creator_id);
         // Ensure we have valid preview images
         const validPreviewImages = Array.isArray(pack.preview_images)
           ? pack.preview_images.filter((url: string) => url && typeof url === 'string' && url.trim() !== '')
@@ -407,14 +444,14 @@ const PromptGrid: React.FC<PromptGridProps> = ({
           category: pack.category,
           price: pack.price || 0,
           preview_images: validPreviewImages,
-          creator: pack.creator,
-          creator_name: pack.creator?.full_name || pack.creator?.username || 'Unknown User',
-          creator_avatar: pack.creator?.avatar_url || 
-            `https://api.dicebear.com/7.x/avataaars/svg?seed=${pack.creator?.username || 'unknown'}`,
+          creator_name: creator?.full_name || creator?.username || 'Anonymous',
+          creator_avatar: creator?.avatar_url || 
+            `https://api.dicebear.com/7.x/avataaars/svg?seed=${creator?.full_name || creator?.username || 'anonymous'}`,
           created_at: pack.created_at,
           updated_at: pack.updated_at,
           favorite_count: pack.favorites?.[0]?.count || 0,
           is_favorited: userFavorites.includes(pack.id),
+          has_purchased: userPurchases.includes(pack.id),
         };
       });
 
