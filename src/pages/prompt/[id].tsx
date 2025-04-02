@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
@@ -18,22 +18,30 @@ import {
   IconButton,
   Skeleton,
   CircularProgress,
+  Tooltip,
+  Snackbar,
 } from '@mui/material';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import LockIcon from '@mui/icons-material/Lock';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import PromptPackManager from '../../components/PromptPackManager';
+import PromptCard from '../../components/PromptCard';
 
 type PromptPack = Database['public']['Tables']['prompt_packs']['Row'] & {
   creator_name?: string;
   creator_avatar?: string;
+  creator_bio?: string | null;
+  favorite_count: number;
+  is_favorited?: boolean;
 };
 
 type CreatorData = {
   full_name: string | null;
   username: string | null;
   avatar_url: string | null;
+  bio: string | null;
 };
 
 // Fallback image for when preview is not available
@@ -56,6 +64,7 @@ export default function PromptPackDetailPage() {
   const [favoriteCount, setFavoriteCount] = useState(0);
   const [relatedPacks, setRelatedPacks] = useState<PromptPack[]>([]);
   const [isPurchasing, setIsPurchasing] = useState(false);
+  const [showCopyTooltip, setShowCopyTooltip] = useState(false);
   const navigate = useNavigate();
 
   const formatDate = (dateString: string) => {
@@ -102,7 +111,7 @@ export default function PromptPackDetailPage() {
         // Get creator information
         const { data: creatorData, error: creatorError } = await supabase
           .from('users')
-          .select('full_name, username, avatar_url')
+          .select('full_name, username, avatar_url, bio')
           .eq('id', packData.creator_id)
           .single() as { data: CreatorData | null, error: any };
 
@@ -119,6 +128,9 @@ export default function PromptPackDetailPage() {
           creator_avatar: creatorData?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${creatorData?.full_name || creatorData?.username || 'anonymous'}`,
           category: packData.category || 'Uncategorized',
           price: packData.price || 0,
+          creator_bio: creatorData?.bio,
+          favorite_count: packData.favorites?.[0]?.count || 0,
+          is_favorited: packData.favorites?.[0]?.count > 0
         };
 
         setPromptPack(validPackData);
@@ -163,8 +175,8 @@ export default function PromptPackDetailPage() {
           // Get creator info for related packs
           const validRelatedData = await Promise.all((relatedPacksData || []).map(async (pack) => {
             const { data: relatedCreatorData } = await supabase
-              .from('creator_profiles')
-              .select('display_name, avatar_url')
+              .from('users')
+              .select('full_name, username, avatar_url')
               .eq('id', pack.creator_id)
               .single();
 
@@ -173,8 +185,9 @@ export default function PromptPackDetailPage() {
               preview_images: Array.isArray(pack.preview_images) 
                 ? pack.preview_images.filter((url: string) => typeof url === 'string' && url.trim() !== '')
                 : [],
-              creator_name: relatedCreatorData?.display_name || 'Anonymous',
-              creator_avatar: relatedCreatorData?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${relatedCreatorData?.display_name || 'anonymous'}`,
+              creator_name: relatedCreatorData?.full_name || relatedCreatorData?.username || 'Anonymous',
+              creator_avatar: relatedCreatorData?.avatar_url || 
+                `https://api.dicebear.com/7.x/avataaars/svg?seed=${relatedCreatorData?.full_name || relatedCreatorData?.username || 'anonymous'}`,
               category: pack.category || 'Uncategorized',
               price: pack.price || 0,
               favorite_count: pack.favorites?.[0]?.count || 0,
@@ -263,6 +276,18 @@ export default function PromptPackDetailPage() {
       setTimeout(() => {
         setIsPurchasing(false);
       }, 2000);
+    }
+  };
+
+  const handleCopyPrompt = async () => {
+    if (!promptPack?.full_prompt) return;
+    
+    try {
+      await navigator.clipboard.writeText(promptPack.full_prompt);
+      setShowCopyTooltip(true);
+      setTimeout(() => setShowCopyTooltip(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy text:', error);
     }
   };
 
@@ -378,32 +403,85 @@ export default function PromptPackDetailPage() {
             width: { xs: '100%', md: '50%' },
             display: 'flex',
             flexDirection: 'column',
-            gap: 3,
+            gap: 2,
             pb: 4
           }}>
-            {/* Title */}
-            <Typography variant="h4" sx={{ color: 'white', mb: 2 }}>
-              {promptPack.title}
-            </Typography>
+            {/* Title and Favorites */}
+            <Box sx={{ mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1.5 }}>
+                <Typography 
+                  variant="h4" 
+                  sx={{ 
+                    color: 'white',
+                    fontSize: { xs: '1.75rem', sm: '2rem' },
+                    lineHeight: 1.2
+                  }}
+                >
+                  {promptPack.title}
+                </Typography>
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  gap: 0.5,
+                  ml: 1
+                }}>
+                  <IconButton 
+                    onClick={handleFavorite} 
+                    sx={{ 
+                      color: 'white',
+                      padding: 0.5,
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 255, 255, 0.1)'
+                      }
+                    }}
+                  >
+                    {isFavorited ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
+                  </IconButton>
+                  <Typography 
+                    variant="body1" 
+                    sx={{ 
+                      color: 'rgba(255, 255, 255, 0.7)',
+                      minWidth: '1.5rem'
+                    }}
+                  >
+                    {favoriteCount}
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* Upload Date and Category */}
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 2,
+                mt: 1
+              }}>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    color: 'rgba(255, 255, 255, 0.7)',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  Uploaded on {formatDate(promptPack.created_at)}
+                </Typography>
+                <Chip 
+                  label={promptPack.category} 
+                  sx={{ 
+                    bgcolor: 'rgb(37, 99, 235)',
+                    color: 'white',
+                    height: '24px',
+                    fontSize: '0.75rem',
+                    '& .MuiChip-label': {
+                      px: 1.5
+                    }
+                  }} 
+                />
+              </Box>
+            </Box>
             
             {/* Actions */}
-            <Box sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 2,
-              mb: 2
-            }}>
-              <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                Uploaded on {formatDate(promptPack.created_at)}
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <IconButton onClick={handleFavorite} sx={{ color: 'white' }}>
-                  {isFavorited ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
-                </IconButton>
-                <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                  {favoriteCount}
-                </Typography>
-              </Box>
+            <Box sx={{ mb: 3 }}>
               <PromptPackManager 
                 packId={promptPack.id} 
                 creatorId={promptPack.creator_id}
@@ -411,86 +489,180 @@ export default function PromptPackDetailPage() {
               />
             </Box>
 
-            {/* Category */}
-            <Chip 
-              label={promptPack.category} 
-              sx={{ 
-                alignSelf: 'flex-start',
-                bgcolor: 'rgb(37, 99, 235)',
-                color: 'white',
-                mb: 2
-              }} 
-            />
-
             {/* Prompt Content */}
             <Box sx={{ 
-              p: 2, 
+              p: 3, 
               bgcolor: 'rgba(30, 41, 59, 0.5)',
-              borderRadius: 1,
+              borderRadius: 2,
               mb: 3
             }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <Typography variant="h6" sx={{ color: 'white' }}>
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between',
+                gap: 1, 
+                mb: 2 
+              }}>
+                <Typography 
+                  variant="h6" 
+                  sx={{ 
+                    color: 'white',
+                    fontSize: '1.125rem',
+                    fontWeight: 600
+                  }}
+                >
                   Prompt Content
                 </Typography>
+                <Tooltip 
+                  open={showCopyTooltip} 
+                  title="Copied!" 
+                  placement="top"
+                  onClose={() => setShowCopyTooltip(false)}
+                >
+                  <IconButton
+                    onClick={handleCopyPrompt}
+                    size="small"
+                    sx={{
+                      color: 'white',
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 255, 255, 0.1)'
+                      }
+                    }}
+                  >
+                    <ContentCopyIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
               </Box>
-              <Typography sx={{ color: 'white' }}>
-                {promptPack.full_prompt}
-              </Typography>
+              <Box sx={{ 
+                maxHeight: '300px', 
+                overflowY: 'auto',
+                '&::-webkit-scrollbar': {
+                  width: '8px',
+                },
+                '&::-webkit-scrollbar-track': {
+                  background: 'rgba(0, 0, 0, 0.1)',
+                  borderRadius: '4px',
+                },
+                '&::-webkit-scrollbar-thumb': {
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  borderRadius: '4px',
+                  '&:hover': {
+                    background: 'rgba(255, 255, 255, 0.3)',
+                  },
+                },
+              }}>
+                <Typography 
+                  sx={{ 
+                    color: 'white',
+                    lineHeight: 1.6,
+                    fontSize: '1rem',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word'
+                  }}
+                >
+                  {promptPack.full_prompt}
+                </Typography>
+              </Box>
             </Box>
 
             {/* Creator Info */}
             <Box sx={{ 
-              p: 2, 
+              p: 3, 
               bgcolor: 'rgba(30, 41, 59, 0.5)',
-              borderRadius: 1,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 2,
+              borderRadius: 2,
               mb: 3
             }}>
-              <Avatar src={promptPack.creator_avatar} />
-              <Box>
-                <Typography variant="subtitle1" sx={{ color: 'white' }}>
-                  {promptPack.creator_name}
-                </Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                  Creator
-                </Typography>
-              </Box>
-            </Box>
-
-            {/* Related Packs */}
-            {relatedPacks.length > 0 && (
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="h6" gutterBottom sx={{ color: 'white', mb: 2 }}>
-                  More from this creator
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {relatedPacks.map((pack) => (
-                    <Box 
-                      key={pack.id} 
-                      sx={{ 
-                        p: 2,
-                        bgcolor: 'rgba(30, 41, 59, 0.5)',
-                        borderRadius: 1,
-                        cursor: 'pointer',
-                        '&:hover': {
-                          bgcolor: 'rgba(30, 41, 59, 0.7)',
-                        },
-                      }}
-                      onClick={() => navigate(`/prompt/${pack.id}`)}
-                    >
-                      <Typography variant="subtitle1" sx={{ color: 'white' }}>
-                        {pack.title}
-                      </Typography>
-                    </Box>
-                  ))}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: promptPack.creator_bio ? 2 : 0 }}>
+                <Avatar 
+                  src={promptPack.creator_avatar}
+                  sx={{ width: 48, height: 48 }}
+                />
+                <Box>
+                  <Typography 
+                    variant="subtitle1" 
+                    sx={{ 
+                      color: 'white',
+                      fontWeight: 600,
+                      fontSize: '1rem',
+                      mb: 0.5
+                    }}
+                  >
+                    {promptPack.creator_name}
+                  </Typography>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      color: 'rgba(255, 255, 255, 0.7)',
+                      fontSize: '0.875rem'
+                    }}
+                  >
+                    Creator
+                  </Typography>
                 </Box>
               </Box>
-            )}
+              {promptPack.creator_bio && (
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    color: 'rgba(255, 255, 255, 0.7)',
+                    mt: 2,
+                    fontSize: '0.875rem',
+                    lineHeight: 1.6
+                  }}
+                >
+                  {promptPack.creator_bio}
+                </Typography>
+              )}
+            </Box>
           </Box>
         </Box>
+
+        {/* More from this creator - Gallery */}
+        {relatedPacks.length > 0 && (
+          <Box sx={{ 
+            maxWidth: '1800px',
+            mx: 'auto',
+            mt: 4,
+            pb: 8
+          }}>
+            <Typography 
+              variant="h5" 
+              sx={{ 
+                color: 'white',
+                mb: 4,
+                fontSize: '1.5rem',
+                fontWeight: 600
+              }}
+            >
+              More from this creator
+            </Typography>
+            <Box sx={{ 
+              display: 'grid',
+              gap: 4,
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(2, 1fr)',
+                md: 'repeat(3, 1fr)',
+                lg: 'repeat(4, 1fr)',
+              }
+            }}>
+              {relatedPacks.map((pack) => (
+                <Box 
+                  key={pack.id}
+                  sx={{ 
+                    height: 400,
+                    display: 'flex',
+                  }}
+                >
+                  <PromptCard
+                    prompt={pack}
+                    onClick={() => navigate(`/prompt/${pack.id}`)}
+                  />
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        )}
       </Container>
     </Box>
   );
