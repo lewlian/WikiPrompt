@@ -4,6 +4,12 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import ProfileMenu from './ProfileMenu';
 
+// Add Sixtyfour font
+const fontImport = document.createElement('link');
+fontImport.href = 'https://fonts.googleapis.com/css2?family=Sixtyfour&display=swap';
+fontImport.rel = 'stylesheet';
+document.head.appendChild(fontImport);
+
 const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -30,14 +36,30 @@ const Header = () => {
       }}
     >
       <Toolbar>
-        <Typography 
-          variant="h6" 
-          component="div" 
-          sx={{ flexGrow: 0, mr: 2, cursor: 'pointer' }}
+        <Box 
           onClick={() => navigate('/')}
+          sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            cursor: 'pointer',
+            mr: 2,
+            '&:hover': {
+              opacity: 0.8
+            }
+          }}
         >
-          WikiPrompt
-        </Typography>
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              fontFamily: "'Sixtyfour', monospace",
+              color: 'white',
+              fontSize: '1.5rem',
+              letterSpacing: '0.02em'
+            }}
+          >
+            WIKIPROMPT
+          </Typography>
+        </Box>
         <Box sx={{ flexGrow: 1 }} />
         {user ? (
           <>
