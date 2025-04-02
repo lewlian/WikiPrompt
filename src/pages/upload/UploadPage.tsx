@@ -48,8 +48,6 @@ export default function UploadPage() {
   const [prompt, setPrompt] = useState('');
   const [aiModel, setAiModel] = useState('');
   const [category, setCategory] = useState('');
-  const [price, setPrice] = useState('');
-  const [allowRemix, setAllowRemix] = useState(false);
   const [images, setImages] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -139,8 +137,6 @@ export default function UploadPage() {
           full_prompt: prompt,
           ai_model: aiModel,
           category,
-          price: price ? parseFloat(price) : 0,
-          allow_remix: allowRemix,
           preview_images: imageUrls,
           creator_id: user!.id,
         });
@@ -173,9 +169,14 @@ export default function UploadPage() {
           fullWidth
           label="Title"
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+            if (e.target.value.length <= 100) {
+              setTitle(e.target.value);
+            }
+          }}
           margin="normal"
           required
+          helperText={`${title.length}/100 characters`}
         />
 
         <Box
@@ -230,11 +231,16 @@ export default function UploadPage() {
           fullWidth
           label="Prompt"
           value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+            if (e.target.value.length <= 2000) {
+              setPrompt(e.target.value);
+            }
+          }}
           margin="normal"
           required
           multiline
           rows={4}
+          helperText={`${prompt.length}/2000 characters`}
         />
 
         <TextField
@@ -268,29 +274,6 @@ export default function UploadPage() {
             </MenuItem>
           ))}
         </TextField>
-
-        <TextField
-          fullWidth
-          label="Price ($)"
-          type="number"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-          margin="normal"
-          InputProps={{
-            inputProps: { min: 0, step: 0.01 }
-          }}
-        />
-
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={allowRemix}
-              onChange={(e) => setAllowRemix(e.target.checked)}
-            />
-          }
-          label="Allow others to remix this prompt"
-          sx={{ mt: 2 }}
-        />
 
         <Button
           type="submit"

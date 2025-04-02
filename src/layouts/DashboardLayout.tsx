@@ -23,7 +23,6 @@ function DashboardLayout() {
   // Initialize state with default values
   const [selectedCategories, setSelectedCategories] = useState<string[]>(['All']);
   const [selectedAiModel, setSelectedAiModel] = useState<string>('All');
-  const [priceRange, setPriceRange] = useState<number[]>([0, 100]);
   const [sortBy, setSortBy] = useState<string>('newest');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -50,10 +49,8 @@ function DashboardLayout() {
         <Box sx={{ display: 'flex', gap: 3 }}>
           <Sidebar
             selectedAiModel={selectedAiModel}
-            priceRange={priceRange}
             sortBy={sortBy}
             onAiModelChange={setSelectedAiModel}
-            onPriceRangeChange={setPriceRange}
             onSortByChange={setSortBy}
           />
           <Box sx={{ flexGrow: 1 }}>
@@ -120,7 +117,6 @@ function DashboardLayout() {
             <PromptGrid
               categories={selectedCategories}
               aiModel={selectedAiModel}
-              priceRange={priceRange}
               sortBy={sortBy}
               searchQuery={searchQuery}
             />

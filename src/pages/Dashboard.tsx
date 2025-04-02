@@ -24,7 +24,6 @@ const Dashboard: React.FC = () => {
   // State for filters
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedAiModel, setSelectedAiModel] = useState<string>('All');
-  const [priceRange, setPriceRange] = useState<number[]>([0, 100]);
   const [sortBy, setSortBy] = useState<string>('newest');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -57,10 +56,8 @@ const Dashboard: React.FC = () => {
           <Box sx={{ width: { xs: '100%', md: '240px' }, flexShrink: 0 }}>
             <Sidebar
               selectedAiModel={selectedAiModel}
-              priceRange={priceRange}
               sortBy={sortBy}
               onAiModelChange={setSelectedAiModel}
-              onPriceRangeChange={setPriceRange}
               onSortByChange={setSortBy}
             />
           </Box>
@@ -183,7 +180,6 @@ const Dashboard: React.FC = () => {
             <PromptGrid
               categories={selectedCategories}
               aiModel={selectedAiModel}
-              priceRange={priceRange}
               sortBy={sortBy}
               searchQuery={searchQuery}
             />
