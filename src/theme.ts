@@ -46,18 +46,24 @@ const theme = createTheme({
     ...colors,
   },
   typography: {
-    fontFamily: '"Inter", "Helvetica", "Arial", sans-serif',
+    fontFamily: '"Space Grotesk", "Roboto", "Helvetica", "Arial", sans-serif',
     h1: {
-      fontFamily: '"Space Grotesk", sans-serif',
+      fontFamily: '"Sixtyfour", cursive',
       fontSize: '2.5rem',
       fontWeight: 700,
       letterSpacing: '-0.02em',
+      background: 'linear-gradient(90deg, #F8FAFC 0%, #94A3B8 100%)',
+      WebkitBackgroundClip: 'text',
+      WebkitTextFillColor: 'transparent',
     },
     h2: {
       fontFamily: '"Space Grotesk", sans-serif',
       fontSize: '2rem',
       fontWeight: 700,
       letterSpacing: '-0.01em',
+      background: 'linear-gradient(90deg, #F8FAFC 0%, #94A3B8 100%)',
+      WebkitBackgroundClip: 'text',
+      WebkitTextFillColor: 'transparent',
     },
     h3: {
       fontFamily: '"Space Grotesk", sans-serif',
@@ -81,30 +87,29 @@ const theme = createTheme({
       fontWeight: 600,
     },
     subtitle1: {
+      fontFamily: '"Space Grotesk", sans-serif',
       fontSize: '1rem',
       fontWeight: 500,
-      letterSpacing: '0.01em',
     },
     subtitle2: {
+      fontFamily: '"Space Grotesk", sans-serif',
       fontSize: '0.875rem',
       fontWeight: 500,
-      letterSpacing: '0.01em',
     },
     body1: {
+      fontFamily: '"Space Grotesk", sans-serif',
       fontSize: '1rem',
-      lineHeight: 1.6,
-      letterSpacing: '0.01em',
+      lineHeight: 1.5,
     },
     body2: {
+      fontFamily: '"Space Grotesk", sans-serif',
       fontSize: '0.875rem',
-      lineHeight: 1.6,
-      letterSpacing: '0.01em',
+      lineHeight: 1.5,
     },
     button: {
       fontFamily: '"Space Grotesk", sans-serif',
       textTransform: 'none',
       fontWeight: 600,
-      letterSpacing: '0.02em',
     },
   },
   shape: {
@@ -144,6 +149,7 @@ const theme = createTheme({
     MuiButton: {
       styleOverrides: {
         root: {
+          fontFamily: '"Space Grotesk", sans-serif',
           borderRadius: '8px',
           padding: '8px 16px',
           transition: 'all 0.2s ease-in-out',
@@ -184,17 +190,27 @@ const theme = createTheme({
     MuiChip: {
       styleOverrides: {
         root: {
+          fontFamily: '"Space Grotesk", sans-serif',
           borderRadius: '6px',
           '&.MuiChip-filled': {
             background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
             color: '#FFFFFF',
           },
         },
+        label: {
+          fontFamily: '"Space Grotesk", sans-serif',
+        },
       },
     },
     MuiTextField: {
       styleOverrides: {
         root: {
+          '& .MuiInputBase-root': {
+            fontFamily: '"Space Grotesk", sans-serif',
+          },
+          '& .MuiInputLabel-root': {
+            fontFamily: '"Space Grotesk", sans-serif',
+          },
           '& .MuiOutlinedInput-root': {
             borderRadius: '8px',
             backgroundColor: 'rgba(148, 163, 184, 0.05)',

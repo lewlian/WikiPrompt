@@ -4,12 +4,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import ProfileMenu from './ProfileMenu';
 
-// Add Sixtyfour font
-const fontImport = document.createElement('link');
-fontImport.href = 'https://fonts.googleapis.com/css2?family=Sixtyfour&display=swap';
-fontImport.rel = 'stylesheet';
-document.head.appendChild(fontImport);
-
 const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -36,30 +30,24 @@ const Header = () => {
       }}
     >
       <Toolbar>
-        <Box 
-          onClick={() => navigate('/')}
+        <Typography 
+          variant="h6" 
+          component="div" 
           sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+            flexGrow: 0, 
+            mr: 2, 
             cursor: 'pointer',
-            mr: 2,
-            '&:hover': {
-              opacity: 0.8
-            }
+            fontFamily: '"Sixtyfour", cursive',
+            fontSize: '1.5rem',
+            background: 'linear-gradient(90deg, #F8FAFC 0%, #94A3B8 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            textShadow: '0 0 20px rgba(248, 250, 252, 0.2)',
           }}
+          onClick={() => navigate('/')}
         >
-          <Typography 
-            variant="h6" 
-            sx={{ 
-              fontFamily: "'Sixtyfour', monospace",
-              color: 'white',
-              fontSize: '1.5rem',
-              letterSpacing: '0.02em'
-            }}
-          >
-            WIKIPROMPT
-          </Typography>
-        </Box>
+          WikiPrompt
+        </Typography>
         <Box sx={{ flexGrow: 1 }} />
         {user ? (
           <>
