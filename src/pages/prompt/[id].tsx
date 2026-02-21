@@ -51,11 +51,10 @@ export default function PromptPackDetailPage() {
   const { user } = useAuth();
   const [promptPack, setPromptPack] = useState<PromptPack | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [hasPurchased, setHasPurchased] = useState(false);
+  const [hasPurchased, setHasPurchased] = useState(false); // eslint-disable-line @typescript-eslint/no-unused-vars
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteCount, setFavoriteCount] = useState(0);
   const [relatedPacks, setRelatedPacks] = useState<PromptPack[]>([]);
-  const [, setIsPurchasing] = useState(false);
   const [showCopyTooltip, setShowCopyTooltip] = useState(false);
   const navigate = useNavigate();
 
@@ -224,50 +223,6 @@ export default function PromptPackDetailPage() {
       setIsFavorited(!isFavorited);
     } catch (error) {
       console.error('Error toggling favorite:', error);
-    }
-  };
-
-  const _handlePurchase = async () => {
-    if (!user) {
-      navigate('/auth?mode=signin');
-      return;
-    }
-
-    if (!promptPack) return;
-
-    try {
-      setIsPurchasing(true);
-
-      if (hasPurchased) {
-        // Delete the purchase
-        const { error: deleteError } = await supabase
-          .from('purchases')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('prompt_pack_id', promptPack.id);
-
-        if (deleteError) throw deleteError;
-        setHasPurchased(false);
-      } else {
-        // Create a new purchase
-        const { error: purchaseError } = await supabase
-          .from('purchases')
-          .insert({
-            user_id: user.id,
-            prompt_pack_id: promptPack.id,
-            amount: promptPack.price
-          });
-
-        if (purchaseError) throw purchaseError;
-        setHasPurchased(true);
-      }
-    } catch (error) {
-      console.error('Error handling purchase:', error);
-    } finally {
-      // Add a small delay to show the loading state
-      setTimeout(() => {
-        setIsPurchasing(false);
-      }, 2000);
     }
   };
 
