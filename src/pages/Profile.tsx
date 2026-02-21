@@ -268,6 +268,7 @@ const Profile = () => {
     } else {
       fetchLikedPacks();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabValue, user]);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {

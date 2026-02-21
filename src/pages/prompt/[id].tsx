@@ -6,26 +6,18 @@ import type { Database } from '../../types/database.types';
 import {
   Box,
   Container,
-  Grid,
   Typography,
-  Button,
-  Card,
-  CardContent,
   ImageList,
   ImageListItem,
   Chip,
   Avatar,
   IconButton,
   Skeleton,
-  CircularProgress,
   Tooltip,
-  Snackbar,
 } from '@mui/material';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import LockIcon from '@mui/icons-material/Lock';
-import LockOpenIcon from '@mui/icons-material/LockOpen';
 import PromptPackManager from '../../components/PromptPackManager';
 import PromptCard from '../../components/PromptCard';
 
@@ -63,7 +55,7 @@ export default function PromptPackDetailPage() {
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteCount, setFavoriteCount] = useState(0);
   const [relatedPacks, setRelatedPacks] = useState<PromptPack[]>([]);
-  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [, setIsPurchasing] = useState(false);
   const [showCopyTooltip, setShowCopyTooltip] = useState(false);
   const navigate = useNavigate();
 
@@ -109,7 +101,7 @@ export default function PromptPackDetailPage() {
         }
 
         // Get creator information
-        const { data: creatorData, error: creatorError } = await supabase
+        const { data: creatorData } = await supabase
           .from('users')
           .select('full_name, username, avatar_url, bio')
           .eq('id', packData.creator_id)
@@ -235,7 +227,7 @@ export default function PromptPackDetailPage() {
     }
   };
 
-  const handlePurchase = async () => {
+  const _handlePurchase = async () => {
     if (!user) {
       navigate('/auth?mode=signin');
       return;

@@ -17,8 +17,6 @@ const Header = () => {
     navigate(`/auth?mode=${mode}`);
   };
 
-  const isHomePage = location.pathname === '/';
-
   return (
     <AppBar 
       position="fixed" 

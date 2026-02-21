@@ -26,11 +26,6 @@ interface PromptPackDetails {
   has_purchased?: boolean;
 }
 
-interface FavoriteCount {
-  prompt_pack_id: string;
-  count: number;
-}
-
 interface PromptGridProps {
   categories: string[];
   aiModel: string;
@@ -47,7 +42,7 @@ const PromptGrid: React.FC<PromptGridProps> = ({
   const { user } = useAuth();
   const [promptPacks, setPromptPacks] = useState<PromptPackDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const fetchPrompts = async () => {
@@ -189,6 +184,7 @@ const PromptGrid: React.FC<PromptGridProps> = ({
 
   useEffect(() => {
     fetchPrompts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categories, aiModel, sortBy, searchQuery, user]);
 
   if (isLoading) {

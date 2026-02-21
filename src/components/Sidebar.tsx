@@ -6,12 +6,10 @@ import {
   List,
   ListItemButton,
   ListItemText,
-  Slider,
   Select,
   MenuItem,
   FormControl,
   InputLabel,
-  TextField,
 } from '@mui/material';
 
 interface SidebarProps {

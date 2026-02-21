@@ -10,8 +10,6 @@ import {
   Button,
   Box,
   MenuItem,
-  FormControlLabel,
-  Checkbox,
   Alert,
   ImageList,
   ImageListItem,
