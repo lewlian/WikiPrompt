@@ -6,6 +6,6 @@ describe('App', () => {
     await act(async () => {
       render(<App />, { withoutRouter: true });
     });
-    expect(screen.getByText(/WikiPrompt/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/WikiPrompt/i).length).toBeGreaterThan(0);
   });
 });
