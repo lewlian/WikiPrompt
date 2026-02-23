@@ -20,6 +20,7 @@ import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import PromptPackManager from '../../components/PromptPackManager';
 import PromptCard from '../../components/PromptCard';
+import { getDemoPromptPackById, DEMO_PROMPT_PACKS } from '../../data/demoPromptPacks';
 
 type PromptPack = Database['public']['Tables']['prompt_packs']['Row'] & {
   creator_name?: string;
@@ -190,6 +191,17 @@ export default function PromptPackDetailPage() {
         }
       } catch (error) {
         console.error('Error fetching prompt pack:', error);
+        // Fallback to demo data when Supabase is unreachable
+        const demoPack = getDemoPromptPackById(id!);
+        if (demoPack) {
+          setPromptPack(demoPack as unknown as PromptPack);
+          setFavoriteCount(demoPack.favorite_count);
+          setIsFavorited(false);
+          const related = DEMO_PROMPT_PACKS
+            .filter((p) => p.category === demoPack.category && p.id !== demoPack.id)
+            .slice(0, 3) as unknown as PromptPack[];
+          setRelatedPacks(related);
+        }
       } finally {
         setIsLoading(false);
       }

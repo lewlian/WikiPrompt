@@ -7,6 +7,7 @@ import {
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import PromptCard from './PromptCard';
+import { DEMO_PROMPT_PACKS, filterDemoData } from '../data/demoPromptPacks';
 
 interface PromptPackDetails {
   id: string;
@@ -90,6 +91,8 @@ const PromptGrid: React.FC<PromptGridProps> = ({
       if (promptError) {
         console.error('Error fetching prompts:', promptError);
         setError(promptError instanceof Error ? promptError.message : 'Failed to fetch prompts');
+        const demoFiltered = filterDemoData(DEMO_PROMPT_PACKS, { categories, aiModel, sortBy, searchQuery });
+        setPromptPacks(demoFiltered);
         return;
       }
 
@@ -177,6 +180,8 @@ const PromptGrid: React.FC<PromptGridProps> = ({
     } catch (err) {
       console.error('Error fetching prompts:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch prompts');
+      const demoFiltered = filterDemoData(DEMO_PROMPT_PACKS, { categories, aiModel, sortBy, searchQuery });
+      setPromptPacks(demoFiltered);
     } finally {
       setIsLoading(false);
     }
